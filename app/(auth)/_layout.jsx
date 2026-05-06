@@ -1,5 +1,9 @@
-import { Stack } from 'expo-router';
+import { View, Text } from 'react-native';
 
-export default function AuthLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+export default function Layout() {
+  return (
+    <View>
+      <Text>Layout working</Text>
+    </View>
+  );
 }
