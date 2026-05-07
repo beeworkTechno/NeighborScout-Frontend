@@ -1,8 +1,28 @@
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Home() {
   const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // 🔍 check login status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = await AsyncStorage.getItem("token");
+      setIsLoggedIn(!!token);
+    };
+
+    checkAuth();
+  }, []);
+
+  // 🚪 logout function
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("token");
+    setIsLoggedIn(false);
+    router.replace("/");
+  };
 
   return (
     <View style={styles.container}>
@@ -11,21 +31,33 @@ export default function Home() {
         Discover events and connect with your community
       </Text>
 
-      {/* LOGIN BUTTON */}
-      <Pressable
-        style={[styles.button, { backgroundColor: '#3b82f6' }]}
-        onPress={() => router.push('/login')}
-      >
-        <Text style={styles.buttonText}>Login</Text>
-      </Pressable>
+      {/* 🔥 IF LOGGED IN → SHOW LOGOUT */}
+      {isLoggedIn ? (
+        <Pressable
+          style={[styles.button, { backgroundColor: '#ef4444' }]}
+          onPress={handleLogout}
+        >
+          <Text style={styles.buttonText}>Logout</Text>
+        </Pressable>
+      ) : (
+        <>
+          {/* LOGIN BUTTON */}
+          <Pressable
+            style={[styles.button, { backgroundColor: '#3b82f6' }]}
+            onPress={() => router.push('/login')}
+          >
+            <Text style={styles.buttonText}>Login</Text>
+          </Pressable>
 
-      {/* REGISTER BUTTON */}
-      <Pressable
-        style={[styles.button, { backgroundColor: '#10b981' }]}
-        onPress={() => router.push('/register')}
-      >
-        <Text style={styles.buttonText}>Register</Text>
-      </Pressable>
+          {/* REGISTER BUTTON */}
+          <Pressable
+            style={[styles.button, { backgroundColor: '#10b981' }]}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.buttonText}>Register</Text>
+          </Pressable>
+        </>
+      )}
     </View>
   );
 }

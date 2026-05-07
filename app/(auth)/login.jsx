@@ -2,9 +2,10 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { View, TextInput, Button, Alert, Text, StyleSheet } from "react-native";
 import { loginUser } from "../../src/services/authService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function Login() {
-  const router = useRouter(); // ✅ ADD THIS
+  const router = useRouter();
 
   const [form, setForm] = useState({
     email: "",
@@ -24,10 +25,13 @@ export default function Login() {
 
       console.log("✅ Login success:", data);
 
+      // 🔐 SAVE TOKEN (STEP 1 FIX)
+      await AsyncStorage.setItem("token", data.token);
+
       Alert.alert("Success", "Login successful!");
 
-      // 🔥 REDIRECT AFTER SUCCESS LOGIN
-      router.replace("/"); // or "/home" if you have a home screen
+      // 🔥 REDIRECT AFTER LOGIN
+      router.replace("/");
 
     } catch (err) {
       console.log("❌ Login failed");
