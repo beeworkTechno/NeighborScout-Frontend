@@ -11,11 +11,20 @@ export default function Home() {
         Discover events and connect with your community
       </Text>
 
+      {/* LOGIN BUTTON */}
       <Pressable
-        style={styles.button}
-        onPress={() => router.push('/(auth)/login')}
+        style={[styles.button, { backgroundColor: '#3b82f6' }]}
+        onPress={() => router.push('/login')}
       >
-        <Text style={styles.buttonText}>Get Started</Text>
+        <Text style={styles.buttonText}>Login</Text>
+      </Pressable>
+
+      {/* REGISTER BUTTON */}
+      <Pressable
+        style={[styles.button, { backgroundColor: '#10b981' }]}
+        onPress={() => router.push('/register')}
+      >
+        <Text style={styles.buttonText}>Register</Text>
       </Pressable>
     </View>
   );
@@ -41,8 +50,7 @@ const styles = StyleSheet.create({
     marginVertical: 10,
   },
   button: {
-    marginTop: 20,
-    backgroundColor: '#3b82f6',
+    marginTop: 15,
     paddingVertical: 12,
     paddingHorizontal: 25,
     borderRadius: 10,
