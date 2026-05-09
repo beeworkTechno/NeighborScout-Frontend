@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
-import api from '../src/services/api';
+import api from '../../src/services/api';
 import { getToken } from '../tokenUtils';
 
 export default function HomeScreen() {
