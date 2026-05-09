@@ -4,9 +4,21 @@
     "slug": "bizrater",
     "version": "1.0.0",
     "scheme": "bizrater",
-    "web": { "bundler": "metro" },
-    "plugins": ["expo-router"],
-    "android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-icon.png", "backgroundColor": "#ffffff" } },
-    "ios": { "supportsTablet": true }
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store"
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "ios": {
+      "supportsTablet": true
+    }
   }
 }
