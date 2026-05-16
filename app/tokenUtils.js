@@ -11,3 +11,6 @@ export const getToken = async () => {
 export const removeToken = async () => {
   await SecureStore.deleteItemAsync('userToken');
 };
+
+// Add default export to fix the warning
+export default { saveToken, getToken, removeToken };
