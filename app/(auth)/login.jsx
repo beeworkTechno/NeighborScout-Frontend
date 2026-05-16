@@ -45,7 +45,7 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome Back</Text>
+      <Text style={styles.title}>Welcome Back, Icon is trying to push to main</Text>
 
       <TextInput
         placeholder="Email"
