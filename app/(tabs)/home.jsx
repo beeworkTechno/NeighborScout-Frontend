@@ -1,11 +1,11 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
-import api from '../src/services/api';
-import { getToken, removeToken } from './tokenUtils';
+import api from '../../src/services/api';
+import { getToken } from '../tokenUtils';
 
-export default function HomeScreen() {
+export default function HomeScreen () {
   const router = useRouter();
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,7 @@ export default function HomeScreen() {
         setNearbyProperties(response.data || []);
       }
     } catch (error) {
+      // Dummy data without external images (using local icon)
       setNearbyProperties([
         { id: 1, name: 'Sunset Villa', price: '$450,000', location: 'Downtown', beds: 3, baths: 2 },
         { id: 2, name: 'Green Park Residence', price: '$320,000', location: 'Westside', beds: 2, baths: 1 },
@@ -55,12 +56,6 @@ export default function HomeScreen() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSignOut = async () => {
-    await removeToken();
-    setUserName('Guest');
-    router.replace('/login');
   };
 
   const PropertyCard = ({ property }) => (
@@ -111,13 +106,6 @@ export default function HomeScreen() {
         <Text style={styles.searchText}>Search by location, price, or type...</Text>
         <Ionicons name="options-outline" size={20} color="#999" style={styles.filterIcon} />
       </TouchableOpacity>
-
-      {userName !== 'Guest' && (
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color="#fff" />
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
-        </TouchableOpacity>
-      )}
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
@@ -307,21 +295,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 4,
     textAlign: 'center',
-  },
-  signOutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#ef4444',
-    marginHorizontal: 20,
-    marginTop: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    gap: 8,
-  },
-  signOutButtonText: {
-    color: '#fff',
-    fontWeight: '700',
   },
   loadingText: {
     color: '#666',
