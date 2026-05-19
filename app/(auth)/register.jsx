@@ -1,6 +1,19 @@
-import { useState } from "react";
-import { View, TextInput, Button, Text, Alert, StyleSheet } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  View,
+  TextInput,
+  Text,
+  Alert,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
+
+import { saveToken } from "../tokenUtils";
+import axios from "axios";
+
 import { registerUser } from "../../src/services/authService";
+import { useGoogleAuth } from "../../src/services/googleAuthService";
+
 import { useRouter } from "expo-router";
 
 export default function Register() {
@@ -12,64 +25,159 @@ export default function Register() {
     password: "",
   });
 
+  // ==========================
+  // Google Auth
+  // ==========================
+  const {
+    response,
+    promptAsync,
+  } = useGoogleAuth();
+
+  // ==========================
+  // Handle Inputs
+  // ==========================
   const handleChange = (key, value) => {
-    setForm({ ...form, [key]: value });
+    setForm({
+      ...form,
+      [key]: value,
+    });
   };
 
+  // ==========================
+  // Normal Register
+  // ==========================
   const handleRegister = async () => {
-    console.log("🚀 Register button clicked");
-    console.log("Form data:", form);
-
     try {
       const data = await registerUser(form);
 
-      console.log("✅ Registered successfully:", data);
+      Alert.alert(
+        "Success",
+        "Account created successfully!"
+      );
 
-      Alert.alert("Success", "Account created successfully!");
-
-      // redirect to login after register
       router.push("/login");
+
     } catch (err) {
-      console.log("❌ Registration failed");
-      console.log("Error message:", err.message);
-      console.log("Backend response:", err.response?.data);
-      console.log("Full error:", err);
-      
-      Alert.alert("Error", "Registration failed");
+
+      console.log(err);
+
+      Alert.alert(
+        "Error",
+        err?.response?.data?.message ||
+          "Registration failed"
+      );
+
     }
   };
 
+  // ==========================
+  // Google Register/Login
+  // ==========================
+  useEffect(() => {
+    const handleGoogleRegister = async () => {
+      try {
+        if (response?.type === "success") {
+
+          const { authentication } = response;
+
+          const res = await axios.post(
+            "http://localhost:5000/api/auth/google",
+            {
+              token: authentication.idToken,
+            }
+          );
+
+          // Save JWT
+          await saveToken(res.data.token);
+
+          Alert.alert(
+            "Success",
+            "Google authentication successful"
+          );
+
+          // Redirect to home
+          router.replace("/");
+
+        }
+      } catch (error) {
+
+        console.log(error);
+
+        Alert.alert(
+          "Error",
+          "Google signup failed"
+        );
+
+      }
+    };
+
+    handleGoogleRegister();
+  }, [response]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
 
+      <Text style={styles.title}>
+        Create Account
+      </Text>
+
+      {/* Name */}
       <TextInput
         placeholder="Name"
         style={styles.input}
-        onChangeText={(text) => handleChange("name", text)}
+        onChangeText={(text) =>
+          handleChange("name", text)
+        }
       />
 
+      {/* Email */}
       <TextInput
         placeholder="Email"
         style={styles.input}
-        onChangeText={(text) => handleChange("email", text)}
+        autoCapitalize="none"
+        onChangeText={(text) =>
+          handleChange("email", text)
+        }
       />
 
+      {/* Password */}
       <TextInput
         placeholder="Password"
         secureTextEntry
         style={styles.input}
-        onChangeText={(text) => handleChange("password", text)}
+        onChangeText={(text) =>
+          handleChange("password", text)
+        }
       />
 
-      <Button title="Register" onPress={handleRegister} />
+      {/* Register Button */}
+      <TouchableOpacity
+        style={styles.registerButton}
+        onPress={handleRegister}
+      >
+        <Text style={styles.buttonText}>
+          Register
+        </Text>
+      </TouchableOpacity>
 
+      {/* Google Signup */}
+      <TouchableOpacity
+        style={styles.googleButton}
+        onPress={() => promptAsync()}
+      >
+        <Text style={styles.buttonText}>
+          Continue with Google
+        </Text>
+      </TouchableOpacity>
+
+      {/* Login Link */}
       <Text
         style={styles.link}
         onPress={() => router.push("/login")}
       >
         Already have an account? Login
       </Text>
+
     </View>
   );
 }
@@ -79,22 +187,49 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    gap: 10,
+    backgroundColor: "#fff",
   },
+
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 30,
+    textAlign: "center",
   },
+
   input: {
     borderWidth: 1,
     borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 8,
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 15,
   },
+
+  registerButton: {
+    backgroundColor: "#007AFF",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 15,
+  },
+
+  googleButton: {
+    backgroundColor: "#DB4437",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 20,
+  },
+
+  buttonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+
   link: {
-    marginTop: 15,
-    color: "blue",
     textAlign: "center",
+    color: "#007AFF",
+    marginTop: 10,
   },
 });

@@ -1,157 +1,412 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  FlatList,
+} from 'react-native';
+
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
+
 import api from '../src/services/api';
-import { getToken, removeToken } from './tokenUtils';
+
+import {
+  getToken,
+  removeToken,
+} from './tokenUtils';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [userName, setUserName] = useState('');
+
+  const [userName, setUserName] = useState('Guest');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
   const [loading, setLoading] = useState(true);
-  const [nearbyProperties, setNearbyProperties] = useState([]);
-  const [featuredProperties, setFeaturedProperties] = useState([]);
+
+  const [nearbyProperties, setNearbyProperties] =
+    useState([]);
+
+  const [featuredProperties, setFeaturedProperties] =
+    useState([]);
 
   useEffect(() => {
     fetchUserData();
     fetchProperties();
   }, []);
 
+  // ==========================
+  // Fetch Logged In User
+  // ==========================
   const fetchUserData = async () => {
     try {
       const token = await getToken();
+
       if (token) {
-        const response = await api.get('/user/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setUserName(response.data.name || 'Neighbor');
+        const response = await api.get(
+          '/auth/me',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setUserName(
+          response.data.name || 'User'
+        );
+
+        setIsLoggedIn(true);
+
       } else {
+
         setUserName('Guest');
+        setIsLoggedIn(false);
+
       }
+
     } catch (error) {
+
+      console.log(error);
+
       setUserName('Guest');
+      setIsLoggedIn(false);
+
+    } finally {
+
+      setLoading(false);
+
     }
   };
 
+  // ==========================
+  // Fetch Properties
+  // ==========================
   const fetchProperties = async () => {
     try {
       const token = await getToken();
+
       if (token) {
-        const response = await api.get('/properties/nearby', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setNearbyProperties(response.data || []);
+        const response = await api.get(
+          '/properties/nearby',
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setNearbyProperties(
+          response.data || []
+        );
       }
     } catch (error) {
+
       setNearbyProperties([
-        { id: 1, name: 'Sunset Villa', price: '$450,000', location: 'Downtown', beds: 3, baths: 2 },
-        { id: 2, name: 'Green Park Residence', price: '$320,000', location: 'Westside', beds: 2, baths: 1 },
-        { id: 3, name: 'Harbor View Apartments', price: '$550,000', location: 'Eastside', beds: 4, baths: 3 },
+        {
+          id: 1,
+          name: 'Sunset Villa',
+          price: '$450,000',
+          location: 'Downtown',
+          beds: 3,
+          baths: 2,
+        },
+        {
+          id: 2,
+          name: 'Green Park Residence',
+          price: '$320,000',
+          location: 'Westside',
+          beds: 2,
+          baths: 1,
+        },
+        {
+          id: 3,
+          name: 'Harbor View Apartments',
+          price: '$550,000',
+          location: 'Eastside',
+          beds: 4,
+          baths: 3,
+        },
       ]);
+
       setFeaturedProperties([
-        { id: 4, name: 'Modern Downtown Loft', price: '$680,000', location: 'City Center', beds: 2, baths: 2 },
-        { id: 5, name: 'Cozy Family Home', price: '$425,000', location: 'Northside', beds: 3, baths: 2 },
+        {
+          id: 4,
+          name: 'Modern Downtown Loft',
+          price: '$680,000',
+          location: 'City Center',
+          beds: 2,
+          baths: 2,
+        },
+        {
+          id: 5,
+          name: 'Cozy Family Home',
+          price: '$425,000',
+          location: 'Northside',
+          beds: 3,
+          baths: 2,
+        },
       ]);
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
+  // ==========================
+  // Logout
+  // ==========================
   const handleSignOut = async () => {
     await removeToken();
+
     setUserName('Guest');
-    router.replace('/login');
+
+    setIsLoggedIn(false);
+
+    router.replace('/');
   };
 
+  // ==========================
+  // Property Card
+  // ==========================
   const PropertyCard = ({ property }) => (
     <TouchableOpacity style={styles.propertyCard}>
       <View style={styles.imagePlaceholder}>
-        <Ionicons name="home-outline" size={40} color="#378ADD" />
+        <Ionicons
+          name="home-outline"
+          size={40}
+          color="#378ADD"
+        />
       </View>
+
       <View style={styles.propertyInfo}>
-        <Text style={styles.propertyName}>{property.name}</Text>
-        <Text style={styles.propertyPrice}>{property.price}</Text>
+        <Text style={styles.propertyName}>
+          {property.name}
+        </Text>
+
+        <Text style={styles.propertyPrice}>
+          {property.price}
+        </Text>
+
         <View style={styles.propertyDetails}>
-          <Ionicons name="bed-outline" size={14} color="#666" />
-          <Text style={styles.detailText}>{property.beds} beds</Text>
-          <Ionicons name="water-outline" size={14} color="#666" />
-          <Text style={styles.detailText}>{property.baths} baths</Text>
+          <Ionicons
+            name="bed-outline"
+            size={14}
+            color="#666"
+          />
+
+          <Text style={styles.detailText}>
+            {property.beds} beds
+          </Text>
+
+          <Ionicons
+            name="water-outline"
+            size={14}
+            color="#666"
+          />
+
+          <Text style={styles.detailText}>
+            {property.baths} baths
+          </Text>
         </View>
+
         <Text style={styles.propertyLocation}>
-          <Ionicons name="location-outline" size={12} /> {property.location}
+          <Ionicons
+            name="location-outline"
+            size={12}
+          />{' '}
+          {property.location}
         </Text>
       </View>
     </TouchableOpacity>
   );
 
+  // ==========================
+  // Featured Card
+  // ==========================
   const FeaturedCard = ({ property }) => (
-    <TouchableOpacity style={styles.featuredPropertyCard}>
+    <TouchableOpacity
+      style={styles.featuredPropertyCard}
+    >
       <View style={styles.featuredPlaceholder}>
-        <Ionicons name="home" size={50} color="#fff" />
-        <Text style={styles.featuredPropertyName}>{property.name}</Text>
-        <Text style={styles.featuredPropertyPrice}>{property.price}</Text>
+        <Ionicons
+          name="home"
+          size={50}
+          color="#fff"
+        />
+
+        <Text style={styles.featuredPropertyName}>
+          {property.name}
+        </Text>
+
+        <Text style={styles.featuredPropertyPrice}>
+          {property.price}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+
+      {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.welcomeText}>Hello, {userName}!</Text>
-          <Text style={styles.subtitle}>Find your dream home</Text>
+          <Text style={styles.welcomeText}>
+            Hello, {userName}!
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Find your dream home
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/profile')}>
-          <Ionicons name="person-circle-outline" size={44} color="#378ADD" />
+
+        <TouchableOpacity
+          onPress={() => router.push('/profile')}
+        >
+          <Ionicons
+            name="person-circle-outline"
+            size={44}
+            color="#378ADD"
+          />
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/search')}>
-        <Ionicons name="search-outline" size={20} color="#999" />
-        <Text style={styles.searchText}>Search by location, price, or type...</Text>
-        <Ionicons name="options-outline" size={20} color="#999" style={styles.filterIcon} />
+      {/* Search */}
+      <TouchableOpacity
+        style={styles.searchBar}
+        onPress={() => router.push('/search')}
+      >
+        <Ionicons
+          name="search-outline"
+          size={20}
+          color="#999"
+        />
+
+        <Text style={styles.searchText}>
+          Search by location, price, or type...
+        </Text>
+
+        <Ionicons
+          name="options-outline"
+          size={20}
+          color="#999"
+          style={styles.filterIcon}
+        />
       </TouchableOpacity>
 
-      {userName !== 'Guest' && (
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color="#fff" />
-          <Text style={styles.signOutButtonText}>Sign Out</Text>
+      {/* Auth Buttons */}
+      {isLoggedIn ? (
+
+        <TouchableOpacity
+          style={styles.signOutButton}
+          onPress={handleSignOut}
+        >
+          <Ionicons
+            name="log-out-outline"
+            size={18}
+            color="#fff"
+          />
+
+          <Text style={styles.signOutButtonText}>
+            Logout
+          </Text>
+
         </TouchableOpacity>
+
+      ) : (
+
+        <View style={styles.authButtonsContainer}>
+
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push('/login')}
+          >
+            <Text style={styles.authButtonText}>
+              Login
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.signupButton}
+            onPress={() => router.push('/register')}
+          >
+            <Text style={styles.authButtonText}>
+              Sign Up
+            </Text>
+          </TouchableOpacity>
+
+        </View>
+
       )}
 
+      {/* Featured */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>✨ Featured for You</Text>
+          <Text style={styles.sectionTitle}>
+            ✨ Featured for You
+          </Text>
+
           <TouchableOpacity>
-            <Text style={styles.seeAllText}>See all</Text>
+            <Text style={styles.seeAllText}>
+              See all
+            </Text>
           </TouchableOpacity>
         </View>
+
         {loading ? (
-          <Text style={styles.loadingText}>Loading featured...</Text>
+          <Text style={styles.loadingText}>
+            Loading featured...
+          </Text>
         ) : (
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
             data={featuredProperties}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => <FeaturedCard property={item} />}
-            contentContainerStyle={styles.horizontalList}
+            keyExtractor={(item) =>
+              item.id.toString()
+            }
+            renderItem={({ item }) => (
+              <FeaturedCard property={item} />
+            )}
+            contentContainerStyle={
+              styles.horizontalList
+            }
           />
         )}
       </View>
 
+      {/* Nearby */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>🏠 Nearby Properties</Text>
+          <Text style={styles.sectionTitle}>
+            🏠 Nearby Properties
+          </Text>
+
           <TouchableOpacity>
-            <Text style={styles.seeAllText}>View all</Text>
+            <Text style={styles.seeAllText}>
+              View all
+            </Text>
           </TouchableOpacity>
         </View>
+
         {loading ? (
-          <Text style={styles.loadingText}>Loading properties...</Text>
+          <Text style={styles.loadingText}>
+            Loading properties...
+          </Text>
         ) : (
           nearbyProperties.map((property) => (
-            <PropertyCard key={property.id} property={property} />
+            <PropertyCard
+              key={property.id}
+              property={property}
+            />
           ))
         )}
       </View>
@@ -166,6 +421,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -177,21 +433,20 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
   },
+
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#1a1a2e',
   },
+
   subtitle: {
     fontSize: 14,
     color: '#666',
     marginTop: 4,
   },
+
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,111 +458,48 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     elevation: 2,
   },
+
   searchText: {
     flex: 1,
     color: '#999',
     fontSize: 14,
     marginLeft: 10,
   },
+
   filterIcon: {
     marginLeft: 10,
   },
-  section: {
-    marginTop: 24,
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
+
+  authButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+    marginHorizontal: 20,
+    marginTop: 16,
+    gap: 10,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#1a1a2e',
-  },
-  seeAllText: {
-    fontSize: 13,
-    color: '#378ADD',
-    fontWeight: '500',
-  },
-  horizontalList: {
-    gap: 15,
-  },
-  propertyCard: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    elevation: 2,
-  },
-  imagePlaceholder: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#e8f0fe',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  propertyInfo: {
+
+  loginButton: {
     flex: 1,
-    padding: 12,
-  },
-  propertyName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a2e',
-  },
-  propertyPrice: {
-    fontSize: 15,
-    color: '#378ADD',
-    fontWeight: '700',
-    marginTop: 4,
-  },
-  propertyDetails: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 6,
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 12,
-    color: '#666',
-  },
-  propertyLocation: {
-    fontSize: 11,
-    color: '#999',
-    marginTop: 6,
-  },
-  featuredPropertyCard: {
-    width: 260,
-    height: 180,
-    marginRight: 15,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  featuredPlaceholder: {
-    width: '100%',
-    height: '100%',
     backgroundColor: '#378ADD',
-    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
     alignItems: 'center',
-    padding: 12,
   },
-  featuredPropertyName: {
-    fontSize: 16,
-    fontWeight: 'bold',
+
+  signupButton: {
+    flex: 1,
+    backgroundColor: '#10b981',
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+
+  authButtonText: {
     color: '#fff',
-    marginTop: 10,
-    textAlign: 'center',
+    fontWeight: '700',
+    fontSize: 15,
   },
-  featuredPropertyPrice: {
-    fontSize: 14,
-    color: '#fff',
-    marginTop: 4,
-    textAlign: 'center',
-  },
+
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -319,10 +511,125 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     gap: 8,
   },
+
   signOutButtonText: {
     color: '#fff',
     fontWeight: '700',
   },
+
+  section: {
+    marginTop: 24,
+    paddingHorizontal: 20,
+  },
+
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1a2e',
+  },
+
+  seeAllText: {
+    fontSize: 13,
+    color: '#378ADD',
+    fontWeight: '500',
+  },
+
+  horizontalList: {
+    gap: 15,
+  },
+
+  propertyCard: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+
+  imagePlaceholder: {
+    width: 100,
+    height: 100,
+    backgroundColor: '#e8f0fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  propertyInfo: {
+    flex: 1,
+    padding: 12,
+  },
+
+  propertyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1a1a2e',
+  },
+
+  propertyPrice: {
+    fontSize: 15,
+    color: '#378ADD',
+    fontWeight: '700',
+    marginTop: 4,
+  },
+
+  propertyDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 8,
+  },
+
+  detailText: {
+    fontSize: 12,
+    color: '#666',
+  },
+
+  propertyLocation: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 6,
+  },
+
+  featuredPropertyCard: {
+    width: 260,
+    height: 180,
+    marginRight: 15,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+
+  featuredPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#378ADD',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 12,
+  },
+
+  featuredPropertyName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+
+  featuredPropertyPrice: {
+    fontSize: 14,
+    color: '#fff',
+    marginTop: 4,
+    textAlign: 'center',
+  },
+
   loadingText: {
     color: '#666',
     textAlign: 'center',

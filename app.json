@@ -1,15 +1,16 @@
 {
   "expo": {
-    "name": "BizRater",
-    "slug": "bizrater",
+    "name": "NeighborScout",
+    "slug": "neighborscout",
     "version": "1.0.0",
-    "scheme": "bizrater",
+    "scheme": "neighborscout",
     "web": {
       "bundler": "metro"
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser"
     ],
     "android": {
       "adaptiveIcon": {

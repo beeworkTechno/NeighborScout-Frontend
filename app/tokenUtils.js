@@ -1,16 +1,29 @@
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Save token
 export const saveToken = async (token) => {
-  await SecureStore.setItemAsync('userToken', token);
+  try {
+    await AsyncStorage.setItem('token', token);
+  } catch (error) {
+    console.log('Save token error:', error);
+  }
 };
 
+// Get token
 export const getToken = async () => {
-  return await SecureStore.getItemAsync('userToken');
+  try {
+    return await AsyncStorage.getItem('token');
+  } catch (error) {
+    console.log('Get token error:', error);
+    return null;
+  }
 };
 
+// Remove token
 export const removeToken = async () => {
-  await SecureStore.deleteItemAsync('userToken');
+  try {
+    await AsyncStorage.removeItem('token');
+  } catch (error) {
+    console.log('Remove token error:', error);
+  }
 };
-
-// Add default export to fix the warning
-export default { saveToken, getToken, removeToken };
