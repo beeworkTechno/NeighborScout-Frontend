@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { saveToken } from '../tokenUtils';
 import axios from 'axios';
 
@@ -50,7 +51,7 @@ export default function LoginScreen() {
 
       Alert.alert('Success', 'Login successful');
 
-      router.replace('/');
+      router.replace('/home');
 
     } catch (error) {
       console.log(error);
@@ -90,7 +91,7 @@ export default function LoginScreen() {
             'Google login successful'
           );
 
-          router.replace('/');
+          router.replace('/home');
 
         }
       } catch (error) {
