@@ -1,9 +1,9 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, FlatList } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import api from '../../src/services/api';
-import { getToken } from '../tokenUtils';
+import { getToken, removeToken } from '../tokenUtils';
 
 export default function HomeScreen () {
   const router = useRouter();
@@ -20,14 +20,15 @@ export default function HomeScreen () {
   const fetchUserData = async () => {
     try {
       const token = await getToken();
-      if (token) {
-        const response = await api.get('/user/profile', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setUserName(response.data.name || 'Neighbor');
-      } else {
-        setUserName('Guest');
+      if (!token) {
+        router.replace('/login');
+        return;
       }
+
+      const response = await api.get('/user/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setUserName(response.data.name || 'Neighbor');
     } catch (error) {
       setUserName('Guest');
     }
@@ -56,6 +57,11 @@ export default function HomeScreen () {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSignOut = async () => {
+    await removeToken();
+    router.replace('/');
   };
 
   const PropertyCard = ({ property }) => (
@@ -105,6 +111,11 @@ export default function HomeScreen () {
         <Ionicons name="search-outline" size={20} color="#999" />
         <Text style={styles.searchText}>Search by location, price, or type...</Text>
         <Ionicons name="options-outline" size={20} color="#999" style={styles.filterIcon} />
+      </TouchableOpacity>
+
+      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={18} color="#fff" />
+        <Text style={styles.signOutButtonText}>Logout</Text>
       </TouchableOpacity>
 
       <View style={styles.section}>
@@ -219,6 +230,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#378ADD',
     fontWeight: '500',
+  },
+  signOutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#ef4444',
+    marginHorizontal: 20,
+    marginTop: 16,
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 8,
+  },
+  signOutButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
   horizontalList: {
     gap: 15,

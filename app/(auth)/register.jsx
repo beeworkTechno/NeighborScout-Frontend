@@ -96,7 +96,7 @@ export default function Register() {
           );
 
           // Redirect to home
-          router.replace("/");
+          router.replace("/home");
 
         }
       } catch (error) {
