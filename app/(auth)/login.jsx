@@ -9,8 +9,7 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { saveToken } from '../tokenUtils';
+import { saveToken, saveRole } from '../tokenUtils';
 import axios from 'axios';
 
 import { useGoogleAuth } from '../../src/services/googleAuthService';
@@ -48,6 +47,9 @@ export default function LoginScreen() {
       );
 
      await saveToken(res.data.token);
+      // persist role if backend provides it
+      const role = res.data.role || res.data.user?.role || 'personal';
+      await saveRole(role);
 
       Alert.alert('Success', 'Login successful');
 
@@ -81,10 +83,8 @@ export default function LoginScreen() {
             }
           );
 
-          await AsyncStorage.setItem(
-            'token',
-            res.data.token
-          );
+          await saveToken(res.data.token);
+          await saveRole(res.data.role || res.data.user?.role || 'personal');
 
           Alert.alert(
             'Success',
