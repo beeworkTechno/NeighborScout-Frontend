@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-import { saveToken } from "../tokenUtils";
+import { saveToken, saveRole } from "../tokenUtils";
 import axios from "axios";
 
 import { registerUser } from "../../src/services/authService";
@@ -23,6 +23,7 @@ export default function Register() {
     name: "",
     email: "",
     password: "",
+    role: "personal",
   });
 
   // ==========================
@@ -50,11 +51,8 @@ export default function Register() {
     try {
       const data = await registerUser(form);
 
-      Alert.alert(
-        "Success",
-        "Account created successfully!"
-      );
-
+      await saveRole(form.role || data.role || 'personal');
+      Alert.alert("Success", "Account created successfully!");
       router.push("/login");
 
     } catch (err) {
@@ -87,8 +85,9 @@ export default function Register() {
             }
           );
 
-          // Save JWT
+          // Save JWT and role
           await saveToken(res.data.token);
+          await saveRole(res.data.role || res.data.user?.role || 'personal');
 
           Alert.alert(
             "Success",
@@ -120,6 +119,23 @@ export default function Register() {
       <Text style={styles.title}>
         Create Account
       </Text>
+
+      {/* Role selection */}
+      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 12 }}>
+        <TouchableOpacity
+          onPress={() => handleChange('role', 'personal')}
+          style={[styles.roleButton, form.role === 'personal' && styles.roleButtonActive]}
+        >
+          <Text style={styles.roleText}>Personal / Reviewer</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => handleChange('role', 'business')}
+          style={[styles.roleButton, form.role === 'business' && styles.roleButtonActive]}
+        >
+          <Text style={styles.roleText}>Business</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Name */}
       <TextInput
@@ -219,6 +235,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     marginBottom: 20,
+  },
+  roleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff'
+  },
+  roleButtonActive: {
+    backgroundColor: '#378ADD',
+  },
+  roleText: {
+    color: '#000'
   },
 
   buttonText: {
