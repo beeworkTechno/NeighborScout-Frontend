@@ -3,11 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import api from '../../src/services/api';
-import { getToken, removeToken } from '../tokenUtils';
+import { getToken, removeToken, getRole, saveRole } from '../tokenUtils';
 
 export default function HomeScreen () {
   const router = useRouter();
   const [userName, setUserName] = useState('');
+  const [userRole, setUserRole] = useState('personal');
   const [loading, setLoading] = useState(true);
   const [nearbyProperties, setNearbyProperties] = useState([]);
   const [featuredProperties, setFeaturedProperties] = useState([]);
@@ -25,14 +26,54 @@ export default function HomeScreen () {
         return;
       }
 
-      const response = await api.get('/user/profile', {
+      const response = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUserName(response.data.name || 'Neighbor');
+      // sync role from storage or server
+      try {
+        const storedRole = await getRole();
+        if (storedRole) {
+          setUserRole(storedRole);
+        } else if (response.data.role) {
+          setUserRole(response.data.role);
+          await saveRole(response.data.role);
+        }
+      } catch (err) {
+        // ignore
+      }
     } catch (error) {
       setUserName('Guest');
     }
   };
+
+  const BusinessDashboard = () => (
+    <View style={{ paddingHorizontal: 20 }}>
+      <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 8 }}>Business Dashboard</Text>
+
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>24</Text>
+          <Text style={styles.statLabel}>Total Reviews</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>4.6</Text>
+          <Text style={styles.statLabel}>Avg. Rating</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>3</Text>
+          <Text style={styles.statLabel}>Active Listings</Text>
+        </View>
+      </View>
+
+      <Text style={{ fontSize: 16, fontWeight: '600', marginBottom: 8 }}>Quick Actions</Text>
+      <TouchableOpacity style={styles.actionButton}><Text style={styles.actionText}>Add / Update Business Info</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.actionButton}><Text style={styles.actionText}>View Reviews & Respond</Text></TouchableOpacity>
+      <TouchableOpacity style={styles.actionButton}><Text style={styles.actionText}>View Analytics</Text></TouchableOpacity>
+
+      <View style={{ height: 40 }} />
+    </View>
+  );
 
   const fetchProperties = async () => {
     try {
@@ -118,42 +159,48 @@ export default function HomeScreen () {
         <Text style={styles.signOutButtonText}>Logout</Text>
       </TouchableOpacity>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>✨ Featured for You</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAllText}>See all</Text>
-          </TouchableOpacity>
-        </View>
-        {loading ? (
-          <Text style={styles.loadingText}>Loading featured...</Text>
-        ) : (
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={featuredProperties}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => <FeaturedCard property={item} />}
-            contentContainerStyle={styles.horizontalList}
-          />
-        )}
-      </View>
+      {userRole === 'business' ? (
+        <BusinessDashboard />
+      ) : (
+        <>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>✨ Featured for You</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>See all</Text>
+              </TouchableOpacity>
+            </View>
+            {loading ? (
+              <Text style={styles.loadingText}>Loading featured...</Text>
+            ) : (
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={featuredProperties}
+                keyExtractor={(item) => item.id.toString()}
+                renderItem={({ item }) => <FeaturedCard property={item} />}
+                contentContainerStyle={styles.horizontalList}
+              />
+            )}
+          </View>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>🏠 Nearby Properties</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAllText}>View all</Text>
-          </TouchableOpacity>
-        </View>
-        {loading ? (
-          <Text style={styles.loadingText}>Loading properties...</Text>
-        ) : (
-          nearbyProperties.map((property) => (
-            <PropertyCard key={property.id} property={property} />
-          ))
-        )}
-      </View>
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🏠 Nearby Properties</Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>View all</Text>
+              </TouchableOpacity>
+            </View>
+            {loading ? (
+              <Text style={styles.loadingText}>Loading properties...</Text>
+            ) : (
+              nearbyProperties.map((property) => (
+                <PropertyCard key={property.id} property={property} />
+              ))
+            )}
+          </View>
+        </>
+      )}
 
       <View style={{ height: 40 }} />
     </ScrollView>
@@ -231,6 +278,19 @@ const styles = StyleSheet.create({
     color: '#378ADD',
     fontWeight: '500',
   },
+  statCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    padding: 12,
+    marginRight: 8,
+    borderRadius: 12,
+    elevation: 2,
+    alignItems: 'center',
+  },
+  statNumber: { fontSize: 20, fontWeight: '800', color: '#1a1a2e' },
+  statLabel: { fontSize: 12, color: '#666', marginTop: 6 },
+  actionButton: { backgroundColor: '#378ADD', padding: 12, borderRadius: 12, marginBottom: 10 },
+  actionText: { color: '#fff', fontWeight: '700', textAlign: 'center' },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
