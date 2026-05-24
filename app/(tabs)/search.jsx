@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
+import colors from '../../src/styles/colors';
 
 export default function SearchScreen() {
   return (
@@ -9,6 +10,6 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
-  text: { fontSize: 20, fontWeight: '500', color: '#333' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.bg },
+  text: { fontSize: 20, fontWeight: '500', color: colors.text },
 });

@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { getToken } from './tokenUtils';
+import colors from '../src/styles/colors';
 
 export default function LandingScreen() {
   const router = useRouter();
@@ -47,25 +48,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    color: '#1a1a2e',
+    color: colors.text,
     textAlign: 'center',
     marginBottom: 16,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: colors.muted,
     textAlign: 'center',
     marginBottom: 40,
     lineHeight: 24,
   },
   loginButton: {
     width: '100%',
-    backgroundColor: '#378ADD',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
   },
   signupButton: {
     width: '100%',
-    backgroundColor: '#10b981',
+    backgroundColor: colors.primaryDark,
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
