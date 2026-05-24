@@ -3,22 +3,34 @@
     "name": "NeighborScout",
     "slug": "neighborscout",
     "version": "1.0.0",
+
     "scheme": "neighborscout",
+
+    "orientation": "portrait",
+
+    "userInterfaceStyle": "light",
+
     "web": {
       "bundler": "metro"
     },
+
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-web-browser"
     ],
+
     "android": {
+      "package": "com.neighborscout.neighborscout",
+
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       }
     },
+
     "ios": {
+      "bundleIdentifier": "com.neighborscout.neighborscout",
       "supportsTablet": true
     }
   }

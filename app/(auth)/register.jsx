@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 
-import { saveToken, saveRole } from "../tokenUtils";
+import { saveToken, saveRole } from "../../utils/tokenUtils";
 import axios from "axios";
 
 import { registerUser } from "../../src/services/authService";
@@ -80,7 +80,7 @@ export default function Register() {
           const { authentication } = response;
 
           const res = await axios.post(
-            "http://localhost:5000/api/auth/google",
+            "http://localhost:5001/api/auth/google",
             {
               token: authentication.idToken,
             }

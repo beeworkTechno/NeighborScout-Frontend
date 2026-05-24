@@ -9,10 +9,14 @@ import {
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
-import { saveToken, saveRole } from '../tokenUtils';
 import axios from 'axios';
 
+import { saveToken, saveRole } from '../../utils/tokenUtils';
+
 import { useGoogleAuth } from '../../src/services/googleAuthService';
+
+import { API_URL } from '../../src/services/api';
+
 import * as AuthSession from 'expo-auth-session';
 import colors from '../../src/styles/colors';
 
@@ -23,12 +27,15 @@ console.log(
 );
 
 export default function LoginScreen() {
+
   const router = useRouter();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
+  // ==========================
   // Google Auth
+  // ==========================
   const {
     response,
     promptAsync,
@@ -38,30 +45,44 @@ export default function LoginScreen() {
   // Normal Login
   // ==========================
   const handleLogin = async () => {
+
     try {
+
       const res = await axios.post(
-        'http://localhost:5000/api/auth/login',
+        `${API_URL}/auth/login`,
         {
           email,
           password,
         }
       );
 
-     await saveToken(res.data.token);
-      // persist role if backend provides it
-      const role = res.data.role || res.data.user?.role || 'personal';
+      await saveToken(res.data.token);
+
+      const role =
+        res.data.role ||
+        res.data.user?.role ||
+        'personal';
+
       await saveRole(role);
 
-      Alert.alert('Success', 'Login successful');
+      Alert.alert(
+        'Success',
+        'Login successful'
+      );
 
       router.replace('/home');
 
     } catch (error) {
-      console.log(error);
+
+      console.log(
+        'Login Error:',
+        error?.response?.data || error
+      );
 
       Alert.alert(
         'Error',
         error?.response?.data?.message ||
+          error.message ||
           'Login failed'
       );
     }
@@ -71,21 +92,47 @@ export default function LoginScreen() {
   // Google Login
   // ==========================
   useEffect(() => {
+
     const handleGoogleLogin = async () => {
+
       try {
+
         if (response?.type === 'success') {
 
-          const { authentication } = response;
+          console.log(
+            'Google response:',
+            response
+          );
 
+          const token =
+            response.authentication?.idToken;
+
+          if (!token) {
+
+            Alert.alert(
+              'Google Login Error',
+              'No Google ID token received'
+            );
+
+            return;
+          }
+
+          // Send Google token to backend
           const res = await axios.post(
-            'http://10.0.2.2:5000/api/auth/google',
+            `${API_URL}/api/auth/google`,
             {
-              token: authentication.idToken,
+              token,
             }
           );
 
           await saveToken(res.data.token);
-          await saveRole(res.data.role || res.data.user?.role || 'personal');
+
+          const role =
+            res.data.role ||
+            res.data.user?.role ||
+            'personal';
+
+          await saveRole(role);
 
           Alert.alert(
             'Success',
@@ -93,24 +140,30 @@ export default function LoginScreen() {
           );
 
           router.replace('/home');
-
         }
+
       } catch (error) {
 
-        console.log(error);
-
-        Alert.alert(
-          'Error',
-          'Google login failed'
+        console.log(
+          'Google Login Error:',
+          error?.response?.data || error
         );
 
+        Alert.alert(
+          'Google Login Error',
+          error?.response?.data?.message ||
+            error.message ||
+            'Google login failed'
+        );
       }
     };
 
     handleGoogleLogin();
+
   }, [response]);
 
   return (
+
     <View style={styles.container}>
 
       <Text style={styles.title}>
