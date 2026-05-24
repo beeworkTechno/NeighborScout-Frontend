@@ -130,7 +130,7 @@ export default function HomeScreen() {
       </View>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Ionicons name="log-out-outline" size={18} color="#fff" />
+        <Ionicons name="log-out-outline" size={18} color={colors.white} />
         <Text style={styles.signOutButtonText}>Logout</Text>
       </TouchableOpacity>
 

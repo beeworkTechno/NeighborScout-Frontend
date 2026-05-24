@@ -15,6 +15,7 @@ import { registerUser } from "../../src/services/authService";
 import { useGoogleAuth } from "../../src/services/googleAuthService";
 
 import { useRouter } from "expo-router";
+import colors from '../../src/styles/colors';
 
 export default function Register() {
   const router = useRouter();
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: colors.bg,
   },
 
   title: {
@@ -211,18 +212,20 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 30,
     textAlign: "center",
+    color: colors.text,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: colors.muted,
     padding: 14,
     borderRadius: 10,
     marginBottom: 15,
+    backgroundColor: colors.white,
   },
 
   registerButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: colors.primary,
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
   },
 
   googleButton: {
-    backgroundColor: "#DB4437",
+    backgroundColor: colors.primaryDark,
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
@@ -241,25 +244,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#fff'
+    borderColor: colors.muted,
+    backgroundColor: colors.white
   },
   roleButtonActive: {
-    backgroundColor: '#378ADD',
+    backgroundColor: colors.primary,
   },
   roleText: {
-    color: '#000'
+    color: colors.text
   },
 
   buttonText: {
-    color: "#fff",
+    color: colors.white,
     fontWeight: "bold",
     fontSize: 16,
   },
 
   link: {
     textAlign: "center",
-    color: "#007AFF",
+    color: colors.primary,
     marginTop: 10,
   },
 });

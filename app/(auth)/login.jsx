@@ -18,6 +18,7 @@ import { useGoogleAuth } from '../../src/services/googleAuthService';
 import { API_URL } from '../../src/services/api';
 
 import * as AuthSession from 'expo-auth-session';
+import colors from '../../src/styles/colors';
 
 console.log(
   AuthSession.makeRedirectUri({
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
 
   title: {
@@ -234,18 +235,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 30,
     textAlign: 'center',
+    color: colors.text,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: colors.muted,
     borderRadius: 10,
     padding: 14,
     marginBottom: 15,
+    backgroundColor: colors.white,
   },
 
   loginButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -253,7 +256,7 @@ const styles = StyleSheet.create({
   },
 
   googleButton: {
-    backgroundColor: '#DB4437',
+    backgroundColor: colors.primaryDark,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
@@ -261,13 +264,13 @@ const styles = StyleSheet.create({
   },
 
   buttonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: 'bold',
     fontSize: 16,
   },
 
   registerText: {
     textAlign: 'center',
-    color: '#007AFF',
+    color: colors.primary,
   },
 });
