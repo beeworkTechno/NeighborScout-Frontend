@@ -35,6 +35,7 @@ export default function HomeScreen() {
   const fetchUserData = async () => {
     try {
       const token = await getToken();
+
       if (!token) {
         router.replace("/login");
         return;
@@ -110,6 +111,23 @@ export default function HomeScreen() {
     router.replace("/");
   };
 
+  const PropertyCard = ({ property }) => (
+    <View style={styles.propertyCard}>
+      <View style={styles.imagePlaceholder}>
+        <Ionicons name="home-outline" size={40} color="#378ADD" />
+      </View>
+
+      <View style={styles.propertyInfo}>
+        <Text style={styles.propertyName}>{property.name}</Text>
+        <Text style={styles.propertyPrice}>{property.price}</Text>
+
+        <Text style={styles.propertyLocation}>
+          <Ionicons name="location-outline" size={12} /> {property.location}
+        </Text>
+      </View>
+    </View>
+  );
+
   // ---------------- PERSONAL DASHBOARD ----------------
   const DashboardView = () => (
     <ScrollView style={{ flex: 1 }}>
@@ -130,34 +148,41 @@ export default function HomeScreen() {
       </View>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Ionicons name="log-out-outline" size={18} color={colors.white} />
+        <Ionicons name="log-out-outline" size={18} color="#fff" />
         <Text style={styles.signOutButtonText}>Logout</Text>
       </TouchableOpacity>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Featured</Text>
 
-        <FlatList
-          horizontal
-          data={featuredProperties}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.featuredCard}>
-              <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                {item.name}
-              </Text>
-              <Text style={{ color: "#fff" }}>{item.price}</Text>
-            </View>
-          )}
-        />
+        {loading ? (
+          <Text style={styles.loadingText}>Loading featured...</Text>
+        ) : (
+          <FlatList
+            horizontal
+            data={featuredProperties}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={({ item }) => (
+              <View style={styles.featuredCard}>
+                <Text style={{ color: "#fff", fontWeight: "bold" }}>
+                  {item.name}
+                </Text>
+                <Text style={{ color: "#fff" }}>{item.price}</Text>
+              </View>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+        )}
       </View>
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Nearby</Text>
 
-        {nearbyProperties.map((p) => (
-          <PropertyCard key={p.id} property={p} />
-        ))}
+        {loading ? (
+          <Text style={styles.loadingText}>Loading properties...</Text>
+        ) : (
+          nearbyProperties.map((p) => <PropertyCard key={p.id} property={p} />)
+        )}
       </View>
     </ScrollView>
   );
@@ -205,24 +230,6 @@ export default function HomeScreen() {
     </ScrollView>
   );
 
-  const PropertyCard = ({ property }) => (
-    <View style={styles.propertyCard}>
-      <View style={styles.imagePlaceholder}>
-        <Ionicons name="home-outline" size={40} color="#378ADD" />
-      </View>
-
-      <View style={styles.propertyInfo}>
-        <Text style={styles.propertyName}>{property.name}</Text>
-        <Text style={styles.propertyPrice}>{property.price}</Text>
-
-        <Text style={styles.propertyLocation}>
-          <Ionicons name="location-outline" size={12} /> {property.location}
-        </Text>
-      </View>
-    </View>
-  );
-
-  // ROLE-BASED DASHBOARD
   const renderDashboard = () => {
     if (userRole === "business") {
       return <BusinessDashboard />;
@@ -233,7 +240,6 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Tabs */}
       <View style={styles.tabBar}>
         <TouchableOpacity onPress={() => setActiveTab("map")}>
           <Text style={[styles.tab, activeTab === "map" && styles.activeTab]}>
@@ -253,13 +259,11 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Content */}
       {activeTab === "map" ? <BusinessMap /> : renderDashboard()}
     </SafeAreaView>
   );
 }
 
-// ---------------- STYLES ----------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -314,6 +318,7 @@ const styles = StyleSheet.create({
     margin: 20,
     borderRadius: 10,
     backgroundColor: "#f5f5f5",
+    alignItems: "center",
   },
 
   searchText: {
@@ -411,5 +416,11 @@ const styles = StyleSheet.create({
   actionText: {
     color: "#fff",
     textAlign: "center",
+  },
+
+  loadingText: {
+    color: "gray",
+    textAlign: "center",
+    padding: 16,
   },
 });
