@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import api from '../../src/services/api';
 import { getToken, removeToken, getRole, saveRole } from '../tokenUtils';
+import colors from '../../src/styles/colors';
 
 export default function HomeScreen () {
   const router = useRouter();
@@ -108,19 +109,19 @@ export default function HomeScreen () {
   const PropertyCard = ({ property }) => (
     <TouchableOpacity style={styles.propertyCard}>
       <View style={styles.imagePlaceholder}>
-        <Ionicons name="home-outline" size={40} color="#378ADD" />
+        <Ionicons name="home-outline" size={40} color={colors.primaryDark} />
       </View>
       <View style={styles.propertyInfo}>
         <Text style={styles.propertyName}>{property.name}</Text>
         <Text style={styles.propertyPrice}>{property.price}</Text>
         <View style={styles.propertyDetails}>
-          <Ionicons name="bed-outline" size={14} color="#666" />
+          <Ionicons name="bed-outline" size={14} color={colors.muted} />
           <Text style={styles.detailText}>{property.beds} beds</Text>
-          <Ionicons name="water-outline" size={14} color="#666" />
+          <Ionicons name="water-outline" size={14} color={colors.muted} />
           <Text style={styles.detailText}>{property.baths} baths</Text>
         </View>
         <Text style={styles.propertyLocation}>
-          <Ionicons name="location-outline" size={12} /> {property.location}
+          <Ionicons name="location-outline" size={12} color={colors.muted} /> {property.location}
         </Text>
       </View>
     </TouchableOpacity>
@@ -129,7 +130,7 @@ export default function HomeScreen () {
   const FeaturedCard = ({ property }) => (
     <TouchableOpacity style={styles.featuredPropertyCard}>
       <View style={styles.featuredPlaceholder}>
-        <Ionicons name="home" size={50} color="#fff" />
+        <Ionicons name="home" size={50} color={colors.white} />
         <Text style={styles.featuredPropertyName}>{property.name}</Text>
         <Text style={styles.featuredPropertyPrice}>{property.price}</Text>
       </View>
@@ -144,18 +145,18 @@ export default function HomeScreen () {
           <Text style={styles.subtitle}>Find your dream home</Text>
         </View>
         <TouchableOpacity onPress={() => router.push('/profile')}>
-          <Ionicons name="person-circle-outline" size={44} color="#378ADD" />
+            <Ionicons name="person-circle-outline" size={44} color={colors.primaryDark} />
         </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/search')}>
-        <Ionicons name="search-outline" size={20} color="#999" />
+        <Ionicons name="search-outline" size={20} color={colors.muted} />
         <Text style={styles.searchText}>Search by location, price, or type...</Text>
-        <Ionicons name="options-outline" size={20} color="#999" style={styles.filterIcon} />
+        <Ionicons name="options-outline" size={20} color={colors.muted} style={styles.filterIcon} />
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Ionicons name="log-out-outline" size={18} color="#fff" />
+        <Ionicons name="log-out-outline" size={18} color={colors.white} />
         <Text style={styles.signOutButtonText}>Logout</Text>
       </TouchableOpacity>
 
@@ -210,7 +211,7 @@ export default function HomeScreen () {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 60,
     paddingBottom: 20,
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
     elevation: 4,
@@ -231,17 +232,17 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1a1a2e',
+    color: colors.text,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: colors.muted,
     marginTop: 4,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     marginHorizontal: 20,
     marginTop: 20,
     paddingHorizontal: 15,
@@ -251,7 +252,7 @@ const styles = StyleSheet.create({
   },
   searchText: {
     flex: 1,
-    color: '#999',
+    color: colors.muted,
     fontSize: 14,
     marginLeft: 10,
   },
@@ -271,31 +272,31 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1a1a2e',
+    color: colors.text,
   },
   seeAllText: {
     fontSize: 13,
-    color: '#378ADD',
+    color: colors.primaryDark,
     fontWeight: '500',
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.card,
     padding: 12,
     marginRight: 8,
     borderRadius: 12,
     elevation: 2,
     alignItems: 'center',
   },
-  statNumber: { fontSize: 20, fontWeight: '800', color: '#1a1a2e' },
-  statLabel: { fontSize: 12, color: '#666', marginTop: 6 },
-  actionButton: { backgroundColor: '#378ADD', padding: 12, borderRadius: 12, marginBottom: 10 },
-  actionText: { color: '#fff', fontWeight: '700', textAlign: 'center' },
+  statNumber: { fontSize: 20, fontWeight: '800', color: colors.text },
+  statLabel: { fontSize: 12, color: colors.muted, marginTop: 6 },
+  actionButton: { backgroundColor: colors.primary, padding: 12, borderRadius: 12, marginBottom: 10 },
+  actionText: { color: colors.white, fontWeight: '700', textAlign: 'center' },
   signOutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#ef4444',
+    backgroundColor: colors.primaryDark,
     marginHorizontal: 20,
     marginTop: 16,
     paddingVertical: 12,
@@ -303,7 +304,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   signOutButtonText: {
-    color: '#fff',
+    color: colors.white,
     fontWeight: '700',
     fontSize: 15,
   },
@@ -312,7 +313,7 @@ const styles = StyleSheet.create({
   },
   propertyCard: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: colors.white,
     borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
@@ -321,7 +322,7 @@ const styles = StyleSheet.create({
   imagePlaceholder: {
     width: 100,
     height: 100,
-    backgroundColor: '#e8f0fe',
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -332,11 +333,11 @@ const styles = StyleSheet.create({
   propertyName: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a2e',
+    color: colors.text,
   },
   propertyPrice: {
     fontSize: 15,
-    color: '#378ADD',
+    color: colors.primaryDark,
     fontWeight: '700',
     marginTop: 4,
   },
@@ -348,11 +349,11 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 12,
-    color: '#666',
+    color: colors.muted,
   },
   propertyLocation: {
     fontSize: 11,
-    color: '#999',
+    color: colors.muted,
     marginTop: 6,
   },
   featuredPropertyCard: {
@@ -365,7 +366,7 @@ const styles = StyleSheet.create({
   featuredPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#378ADD',
+    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 12,
@@ -373,18 +374,18 @@ const styles = StyleSheet.create({
   featuredPropertyName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: colors.white,
     marginTop: 10,
     textAlign: 'center',
   },
   featuredPropertyPrice: {
     fontSize: 14,
-    color: '#fff',
+    color: colors.white,
     marginTop: 4,
     textAlign: 'center',
   },
   loadingText: {
-    color: '#666',
+    color: colors.muted,
     textAlign: 'center',
     padding: 20,
   },
