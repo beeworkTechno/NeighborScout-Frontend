@@ -5,11 +5,11 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 
 import MapView, {
   Marker,
-  Callout,
   UrlTile,
 } from 'react-native-maps';
 
@@ -81,6 +81,7 @@ const getBusinessCoordinates = (business) => {
 
 export default function BusinessMap() {
   const [businesses, setBusinesses] = useState([]);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -136,6 +137,10 @@ export default function BusinessMap() {
     }
   };
 
+  const closeBusinessCard = () => {
+    setSelectedBusiness(null);
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -146,100 +151,118 @@ export default function BusinessMap() {
   }
 
   return (
-    <MapView
-      style={styles.map}
-      initialRegion={{
-        latitude: userLocation?.latitude || 65.0121,
-        longitude: userLocation?.longitude || 25.4651,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }}
-      showsUserLocation
-    >
-      <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: userLocation?.latitude || 65.0121,
+          longitude: userLocation?.longitude || 25.4651,
+          latitudeDelta: 0.05,
+          longitudeDelta: 0.05,
+        }}
+        showsUserLocation
+        onPress={closeBusinessCard}
+      >
+        <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {userLocation && (
-        <Marker
-          coordinate={userLocation}
-          title="You"
-          pinColor="blue"
-        />
-      )}
-
-      {businesses.map((business) => {
-        const coordinate = getBusinessCoordinates(business);
-
-        if (!coordinate) return null;
-
-        const icon = getCategoryIcon(business.category);
-        const markerColor = getMarkerColor(business.category);
-
-        return (
+        {userLocation && (
           <Marker
-            key={business._id}
-            coordinate={coordinate}
-            tracksViewChanges={false}
-          >
-            <View
-              style={[
-                styles.iconMarker,
-                {
-                  borderColor: markerColor,
-                },
-              ]}
+            coordinate={userLocation}
+            title="You"
+            pinColor="blue"
+          />
+        )}
+
+        {businesses.map((business) => {
+          const coordinate = getBusinessCoordinates(business);
+
+          if (!coordinate) return null;
+
+          const icon = getCategoryIcon(business.category);
+          const markerColor = getMarkerColor(business.category);
+
+          return (
+            <Marker
+              key={business._id}
+              coordinate={coordinate}
+              tracksViewChanges={false}
+              onPress={(event) => {
+                event.stopPropagation();
+                setSelectedBusiness({
+                  ...business,
+                  icon,
+                });
+              }}
             >
-              <Text style={styles.iconText}>
-                {icon}
-              </Text>
-            </View>
-
-            <View
-              style={[
-                styles.markerPointer,
-                {
-                  borderTopColor: markerColor,
-                },
-              ]}
-            />
-
-            <Callout>
-              <View style={styles.callout}>
-                <Text style={styles.calloutTitle}>
-                  {icon} {business.name}
-                </Text>
-
-                <Text
-                  style={[
-                    styles.calloutCategory,
-                    {
-                      color: markerColor,
-                    },
-                  ]}
-                >
-                  {business.category || 'Business'}
-                </Text>
-
-                <Text style={styles.calloutText}>
-                  {business.address || 'Address not provided'}
-                </Text>
-
-                <Text style={styles.calloutText}>
-                  Rating: {business.averageRating || 0} ⭐
-                </Text>
-
-                <Text style={styles.calloutText}>
-                  Reviews: {business.reviewCount || 0}
-                </Text>
+              <View
+                style={[
+                  styles.iconMarker,
+                  {
+                    borderColor: markerColor,
+                  },
+                ]}
+              >
+                <Text style={styles.iconText}>{icon}</Text>
               </View>
-            </Callout>
-          </Marker>
-        );
-      })}
-    </MapView>
+
+              <View
+                style={[
+                  styles.markerPointer,
+                  {
+                    borderTopColor: markerColor,
+                  },
+                ]}
+              />
+            </Marker>
+          );
+        })}
+      </MapView>
+
+      {selectedBusiness && (
+        <View style={styles.businessCard}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={closeBusinessCard}
+          >
+            <Text style={styles.closeText}>×</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.businessName}>
+            {selectedBusiness.icon} {selectedBusiness.name}
+          </Text>
+
+          <Text style={styles.businessCategory}>
+            {selectedBusiness.category || 'Business'}
+          </Text>
+
+          <Text style={styles.businessDescription}>
+            {selectedBusiness.description || 'No description available'}
+          </Text>
+
+          <Text style={styles.businessText}>
+            📍 {selectedBusiness.address || 'Address not provided'}
+          </Text>
+
+          <Text style={styles.businessText}>
+            {(selectedBusiness.reviewCount || 0) > 0
+              ? `⭐ ${selectedBusiness.averageRating || 0} rating`
+              : 'No reviews yet'}
+          </Text>
+
+          <Text style={styles.businessText}>
+            Reviews: {selectedBusiness.reviewCount || 0}
+          </Text>
+        </View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+
   map: {
     flex: 1,
   },
@@ -288,23 +311,59 @@ const styles = StyleSheet.create({
     fontSize: 23,
   },
 
-  callout: {
-    width: 220,
+  businessCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    padding: 16,
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
   },
 
-  calloutTitle: {
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 12,
+    zIndex: 10,
+  },
+
+  closeText: {
+    fontSize: 28,
+    color: '#555',
     fontWeight: 'bold',
-    fontSize: 16,
-    marginBottom: 4,
   },
 
-  calloutCategory: {
-    fontWeight: '700',
+  businessName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#222',
     marginBottom: 4,
+    paddingRight: 28,
   },
 
-  calloutText: {
-    fontSize: 13,
-    marginBottom: 3,
+  businessCategory: {
+    color: '#F9B208',
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+
+  businessDescription: {
+    color: '#555',
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+
+  businessText: {
+    color: '#555',
+    marginTop: 3,
   },
 });

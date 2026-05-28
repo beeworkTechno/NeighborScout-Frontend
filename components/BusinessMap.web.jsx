@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Text,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 
 import api from '../src/services/api';
@@ -22,6 +23,11 @@ const getCategoryIcon = (category = '') => {
   if (value.includes('salon')) return '💇';
   if (value.includes('repair')) return '🔧';
   if (value.includes('furniture')) return '🪑';
+  if (value.includes('school')) return '🏫';
+  if (value.includes('gym')) return '🏋️';
+  if (value.includes('hospital') || value.includes('clinic')) return '🏥';
+  if (value.includes('bank')) return '🏦';
+  if (value.includes('shop') || value.includes('store')) return '🛍️';
 
   return '🏢';
 };
@@ -47,17 +53,9 @@ const getBusinessCoordinates = (business) => {
   return null;
 };
 
-const escapeHtml = (value = '') => {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-};
-
 export default function BusinessMap() {
   const [businesses, setBusinesses] = useState([]);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const defaultLatitude = 65.0121;
@@ -65,6 +63,24 @@ export default function BusinessMap() {
 
   useEffect(() => {
     fetchBusinesses();
+  }, []);
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event?.data?.type === 'BUSINESS_MARKER_CLICK') {
+        setSelectedBusiness(event.data.business);
+      }
+
+      if (event?.data?.type === 'MAP_CLICK') {
+        setSelectedBusiness(null);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, []);
 
   const fetchBusinesses = async () => {
@@ -86,9 +102,7 @@ export default function BusinessMap() {
 
   const mapHtml = useMemo(() => {
     const firstBusinessCoordinates =
-      businesses.length > 0
-        ? getBusinessCoordinates(businesses[0])
-        : null;
+      businesses.length > 0 ? getBusinessCoordinates(businesses[0]) : null;
 
     const centerLatitude =
       firstBusinessCoordinates?.latitude || defaultLatitude;
@@ -100,17 +114,16 @@ export default function BusinessMap() {
       .map((business) => {
         const coordinate = getBusinessCoordinates(business);
 
-        if (!coordinate) {
-          return null;
-        }
+        if (!coordinate) return null;
 
         return {
-          id: business._id,
+          _id: business._id,
           name: business.name || 'Business',
+          description: business.description || 'No description available',
           category: business.category || 'Business',
           address: business.address || 'Address not provided',
           rating: business.averageRating || 0,
-          reviews: business.reviewCount || 0,
+          reviewCount: business.reviewCount || 0,
           icon: getCategoryIcon(business.category),
           latitude: coordinate.latitude,
           longitude: coordinate.longitude,
@@ -146,33 +159,17 @@ export default function BusinessMap() {
             }
 
             .business-marker {
-              width: 42px;
-              height: 42px;
+              width: 44px;
+              height: 44px;
               border-radius: 50%;
               background: white;
               border: 3px solid #F9B208;
               display: flex;
               justify-content: center;
               align-items: center;
-              font-size: 22px;
+              font-size: 23px;
               box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
-            }
-
-            .popup-title {
-              font-weight: 700;
-              font-size: 15px;
-              margin-bottom: 4px;
-            }
-
-            .popup-category {
-              color: #F9B208;
-              font-weight: 700;
-              margin-bottom: 4px;
-            }
-
-            .popup-text {
-              color: #555;
-              margin-bottom: 3px;
+              cursor: pointer;
             }
           </style>
         </head>
@@ -190,44 +187,44 @@ export default function BusinessMap() {
 
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
               maxZoom: 19,
-              attribution:
-                '&copy; OpenStreetMap contributors'
+              attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
+
+            map.on('click', function () {
+              window.parent.postMessage(
+                {
+                  type: 'MAP_CLICK'
+                },
+                '*'
+              );
+            });
 
             businesses.forEach((business) => {
               const icon = L.divIcon({
                 html: '<div class="business-marker">' + business.icon + '</div>',
                 className: '',
-                iconSize: [42, 42],
-                iconAnchor: [21, 21],
-                popupAnchor: [0, -20],
+                iconSize: [44, 44],
+                iconAnchor: [22, 22],
               });
 
-              L.marker([business.latitude, business.longitude], {
-                icon,
-              })
-                .addTo(map)
-                .bindPopup(
-                  '<div>' +
-                    '<div class="popup-title">' +
-                      business.icon +
-                      ' ' +
-                      business.name +
-                    '</div>' +
-                    '<div class="popup-category">' +
-                      business.category +
-                    '</div>' +
-                    '<div class="popup-text">' +
-                      business.address +
-                    '</div>' +
-                    '<div class="popup-text">Rating: ' +
-                      business.rating +
-                      ' ⭐</div>' +
-                    '<div class="popup-text">Reviews: ' +
-                      business.reviews +
-                    '</div>' +
-                  '</div>'
+              const marker = L.marker(
+                [business.latitude, business.longitude],
+                {
+                  icon: icon,
+                }
+              ).addTo(map);
+
+              marker.on('click', function (event) {
+                L.DomEvent.stopPropagation(event);
+
+                window.parent.postMessage(
+                  {
+                    type: 'BUSINESS_MARKER_CLICK',
+                    business: business,
+                  },
+                  '*'
                 );
+              });
             });
 
             if (businesses.length > 0) {
@@ -265,6 +262,43 @@ export default function BusinessMap() {
           border: '0',
         }}
       />
+
+      {selectedBusiness && (
+        <View style={styles.businessCard}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setSelectedBusiness(null)}
+          >
+            <Text style={styles.closeText}>×</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.businessName}>
+            {selectedBusiness.icon} {selectedBusiness.name}
+          </Text>
+
+          <Text style={styles.businessCategory}>
+            {selectedBusiness.category}
+          </Text>
+
+          <Text style={styles.businessDescription}>
+            {selectedBusiness.description}
+          </Text>
+
+          <Text style={styles.businessText}>
+            📍 {selectedBusiness.address}
+          </Text>
+
+          <Text style={styles.businessText}>
+            {(selectedBusiness.reviewCount || 0) > 0
+              ? `⭐ ${selectedBusiness.rating} rating`
+              : 'No reviews yet'}
+          </Text>
+
+          <Text style={styles.businessText}>
+            Reviews: {selectedBusiness.reviewCount || 0}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -287,5 +321,55 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 8,
     color: colors.text,
+  },
+
+  businessCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 20,
+    backgroundColor: colors.white || '#fff',
+    borderRadius: 18,
+    padding: 16,
+    elevation: 5,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+  },
+
+  closeButton: {
+    position: 'absolute',
+    top: 8,
+    right: 12,
+    zIndex: 10,
+  },
+
+  closeText: {
+    fontSize: 28,
+    color: '#555',
+    fontWeight: 'bold',
+  },
+
+  businessName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: colors.text || '#222',
+    marginBottom: 4,
+    paddingRight: 28,
+  },
+
+  businessCategory: {
+    color: colors.primary || '#F9B208',
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+
+  businessDescription: {
+    color: '#555',
+    marginBottom: 6,
+    lineHeight: 20,
+  },
+
+  businessText: {
+    color: '#555',
+    marginTop: 3,
   },
 });
