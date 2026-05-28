@@ -19,7 +19,7 @@ export const getToken = async () => {
   }
 };
 
-// Remove token
+// Remove token only
 export const removeToken = async () => {
   try {
     await AsyncStorage.removeItem('token');
@@ -28,7 +28,7 @@ export const removeToken = async () => {
   }
 };
 
-// Save user role ("personal" or "business")
+// Save user role
 export const saveRole = async (role) => {
   try {
     await AsyncStorage.setItem('role', role);
@@ -47,11 +47,20 @@ export const getRole = async () => {
   }
 };
 
-// Remove role
+// Remove role only
 export const removeRole = async () => {
   try {
     await AsyncStorage.removeItem('role');
   } catch (error) {
     console.log('Remove role error:', error);
+  }
+};
+
+// Clear all auth data during logout
+export const clearToken = async () => {
+  try {
+    await AsyncStorage.multiRemove(['token', 'role']);
+  } catch (error) {
+    console.log('Clear auth data error:', error);
   }
 };
