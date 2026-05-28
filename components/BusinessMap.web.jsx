@@ -53,6 +53,23 @@ const getBusinessCoordinates = (business) => {
   return null;
 };
 
+const getPopularBusinesses = (businesses) => {
+  const reviewedBusinesses = businesses
+    .filter((business) => (business.reviewCount || 0) > 0)
+    .sort((a, b) => {
+      if ((b.reviewCount || 0) !== (a.reviewCount || 0)) {
+        return (b.reviewCount || 0) - (a.reviewCount || 0);
+      }
+
+      return (b.averageRating || 0) - (a.averageRating || 0);
+    })
+    .slice(0, 5);
+
+  return reviewedBusinesses.length > 0
+    ? reviewedBusinesses
+    : businesses.slice(0, 5);
+};
+
 export default function BusinessMap() {
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -101,8 +118,12 @@ export default function BusinessMap() {
   };
 
   const mapHtml = useMemo(() => {
+    const popularBusinesses = getPopularBusinesses(businesses);
+
     const firstBusinessCoordinates =
-      businesses.length > 0 ? getBusinessCoordinates(businesses[0]) : null;
+      popularBusinesses.length > 0
+        ? getBusinessCoordinates(popularBusinesses[0])
+        : null;
 
     const centerLatitude =
       firstBusinessCoordinates?.latitude || defaultLatitude;
@@ -130,6 +151,22 @@ export default function BusinessMap() {
         };
       })
       .filter(Boolean);
+
+    const popularMarkerData = markerData
+      .filter((business) => business.reviewCount > 0)
+      .sort((a, b) => {
+        if (b.reviewCount !== a.reviewCount) {
+          return b.reviewCount - a.reviewCount;
+        }
+
+        return b.rating - a.rating;
+      })
+      .slice(0, 5);
+
+    const businessesToFit =
+      popularMarkerData.length > 0
+        ? popularMarkerData
+        : markerData.slice(0, 5);
 
     return `
       <!DOCTYPE html>
@@ -179,6 +216,7 @@ export default function BusinessMap() {
 
           <script>
             const businesses = ${JSON.stringify(markerData)};
+            const businessesToFit = ${JSON.stringify(businessesToFit)};
 
             const map = L.map('map').setView(
               [${centerLatitude}, ${centerLongitude}],
@@ -227,14 +265,16 @@ export default function BusinessMap() {
               });
             });
 
-            if (businesses.length > 0) {
+            if (businessesToFit.length > 0) {
               const group = L.featureGroup(
-                businesses.map((business) =>
+                businessesToFit.map((business) =>
                   L.marker([business.latitude, business.longitude])
                 )
               );
 
-              map.fitBounds(group.getBounds().pad(0.2));
+              map.fitBounds(group.getBounds().pad(0.25), {
+                maxZoom: 15,
+              });
             }
           </script>
         </body>

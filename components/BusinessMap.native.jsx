@@ -8,10 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 
-import MapView, {
-  Marker,
-  UrlTile,
-} from 'react-native-maps';
+import MapView, { Marker, UrlTile } from 'react-native-maps';
 
 import * as Location from 'expo-location';
 import api from '../src/services/api';
@@ -77,6 +74,61 @@ const getBusinessCoordinates = (business) => {
   }
 
   return null;
+};
+
+const getPopularBusinesses = (businesses) => {
+  const reviewedBusinesses = businesses
+    .filter((business) => (business.reviewCount || 0) > 0)
+    .sort((a, b) => {
+      if ((b.reviewCount || 0) !== (a.reviewCount || 0)) {
+        return (b.reviewCount || 0) - (a.reviewCount || 0);
+      }
+
+      return (b.averageRating || 0) - (a.averageRating || 0);
+    })
+    .slice(0, 5);
+
+  return reviewedBusinesses.length > 0
+    ? reviewedBusinesses
+    : businesses.slice(0, 5);
+};
+
+const getRegionForBusinesses = (businesses, fallbackLocation) => {
+  const popularBusinesses = getPopularBusinesses(businesses);
+
+  const coordinates = popularBusinesses
+    .map((business) => getBusinessCoordinates(business))
+    .filter(Boolean);
+
+  if (coordinates.length === 0) {
+    return {
+      latitude: fallbackLocation?.latitude || 65.0121,
+      longitude: fallbackLocation?.longitude || 25.4651,
+      latitudeDelta: 0.05,
+      longitudeDelta: 0.05,
+    };
+  }
+
+  const latitudes = coordinates.map((coord) => coord.latitude);
+  const longitudes = coordinates.map((coord) => coord.longitude);
+
+  const minLatitude = Math.min(...latitudes);
+  const maxLatitude = Math.max(...latitudes);
+  const minLongitude = Math.min(...longitudes);
+  const maxLongitude = Math.max(...longitudes);
+
+  const centerLatitude = (minLatitude + maxLatitude) / 2;
+  const centerLongitude = (minLongitude + maxLongitude) / 2;
+
+  const latitudeDelta = Math.max((maxLatitude - minLatitude) * 1.6, 0.03);
+  const longitudeDelta = Math.max((maxLongitude - minLongitude) * 1.6, 0.03);
+
+  return {
+    latitude: centerLatitude,
+    longitude: centerLongitude,
+    latitudeDelta,
+    longitudeDelta,
+  };
 };
 
 export default function BusinessMap() {
@@ -154,12 +206,7 @@ export default function BusinessMap() {
     <View style={styles.container}>
       <MapView
         style={styles.map}
-        initialRegion={{
-          latitude: userLocation?.latitude || 65.0121,
-          longitude: userLocation?.longitude || 25.4651,
-          latitudeDelta: 0.05,
-          longitudeDelta: 0.05,
-        }}
+        initialRegion={getRegionForBusinesses(businesses, userLocation)}
         showsUserLocation
         onPress={closeBusinessCard}
       >
