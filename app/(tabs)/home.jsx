@@ -7,6 +7,10 @@ import {
   ScrollView,
   TouchableOpacity,
   FlatList,
+  TextInput,
+  Modal,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -14,7 +18,12 @@ import { useRouter } from "expo-router";
 
 import BusinessMap from "../../components/BusinessMap";
 import api from "../../src/services/api";
-import { getToken, removeToken, getRole, saveRole } from "../../utils/tokenUtils";
+import {
+  getToken,
+  getRole,
+  saveRole,
+  clearToken,
+} from "../../utils/tokenUtils";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -24,26 +33,43 @@ export default function HomeScreen() {
   const [userRole, setUserRole] = useState("personal");
   const [loading, setLoading] = useState(true);
 
-  const [nearbyProperties, setNearbyProperties] = useState([]);
-  const [featuredProperties, setFeaturedProperties] = useState([]);
+  const [businesses, setBusinesses] = useState([]);
+  const [myBusinesses, setMyBusinesses] = useState([]);
+
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [selectedBusiness, setSelectedBusiness] = useState(null);
+  const [selectedBusinessReviews, setSelectedBusinessReviews] = useState([]);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const isBusinessUser = userRole === "business";
 
   useEffect(() => {
-    fetchUserData();
-    fetchProperties();
+    loadHomeData();
   }, []);
+
+  const loadHomeData = async () => {
+    try {
+      setLoading(true);
+
+      await fetchUserData();
+      await fetchBusinesses();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUserData = async () => {
     try {
       const token = await getToken();
 
       if (!token) {
-        router.replace("/login");
+        router.replace("/(auth)/login");
         return;
       }
 
-      const response = await api.get("/auth/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await api.get("/auth/me");
 
       setUserName(response.data.name || "Neighbor");
 
@@ -56,95 +82,185 @@ export default function HomeScreen() {
         await saveRole(response.data.role);
       }
     } catch (error) {
+      console.log("Fetch User Error:", error?.response?.data || error);
+
+      if (error?.response?.status === 401) {
+        await clearToken();
+        router.replace("/(auth)/login");
+      }
+
       setUserName("Guest");
     }
   };
 
-  const fetchProperties = async () => {
+  const fetchBusinesses = async () => {
     try {
-      const token = await getToken();
+      const response = await api.get("/businesses");
+      setBusinesses(response.data || []);
 
-      if (token) {
-        const response = await api.get("/properties/nearby", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      const role = await getRole();
 
-        setNearbyProperties(response.data || []);
+      if (role === "business") {
+        try {
+          const myBusinessRes = await api.get("/businesses/my");
+          setMyBusinesses(myBusinessRes.data || []);
+        } catch (error) {
+          console.log("Fetch My Businesses Error:", error?.response?.data || error);
+          setMyBusinesses([]);
+        }
       }
     } catch (error) {
-      setNearbyProperties([
-        {
-          id: 1,
-          name: "Sunset Villa",
-          price: "$450,000",
-          location: "Downtown",
-          beds: 3,
-          baths: 2,
-        },
-        {
-          id: 2,
-          name: "Green Park Residence",
-          price: "$320,000",
-          location: "Westside",
-          beds: 2,
-          baths: 1,
-        },
-      ]);
-
-      setFeaturedProperties([
-        {
-          id: 4,
-          name: "Modern Loft",
-          price: "$680,000",
-          location: "City Center",
-          beds: 2,
-          baths: 2,
-        },
-      ]);
-    } finally {
-      setLoading(false);
+      console.log("Fetch Businesses Error:", error?.response?.data || error);
+      setBusinesses([]);
     }
   };
 
   const handleSignOut = async () => {
-    await removeToken();
-    router.replace("/");
+    await clearToken();
+    router.replace("/(auth)/login");
   };
 
-  const PropertyCard = ({ property }) => (
-    <View style={styles.propertyCard}>
-      <View style={styles.imagePlaceholder}>
-        <Ionicons name="home-outline" size={40} color="#378ADD" />
-      </View>
+  const openReviewModal = async (business) => {
+    setSelectedBusiness(business);
+    setReviewRating(5);
+    setReviewComment("");
+    setReviewModalVisible(true);
 
-      <View style={styles.propertyInfo}>
-        <Text style={styles.propertyName}>{property.name}</Text>
-        <Text style={styles.propertyPrice}>{property.price}</Text>
+    await fetchReviewsForBusiness(business._id);
+  };
 
-        <Text style={styles.propertyLocation}>
-          <Ionicons name="location-outline" size={12} /> {property.location}
+  const fetchReviewsForBusiness = async (businessId) => {
+    try {
+      const response = await api.get(`/reviews/${businessId}`);
+      setSelectedBusinessReviews(response.data || []);
+    } catch (error) {
+      console.log("Fetch Reviews Error:", error?.response?.data || error);
+      setSelectedBusinessReviews([]);
+    }
+  };
+
+  const submitReview = async () => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (isBusinessUser) {
+      Alert.alert(
+        "Not allowed",
+        "Business accounts cannot rate or review businesses."
+      );
+      return;
+    }
+
+    if (!reviewRating || reviewRating < 1 || reviewRating > 5) {
+      Alert.alert("Invalid Rating", "Rating must be between 1 and 5.");
+      return;
+    }
+
+    try {
+      setReviewLoading(true);
+
+      await api.post(`/reviews/${selectedBusiness._id}`, {
+        rating: reviewRating,
+        comment: reviewComment.trim(),
+      });
+
+      Alert.alert("Success", "Review submitted successfully.");
+
+      setReviewComment("");
+      setReviewRating(5);
+
+      await fetchReviewsForBusiness(selectedBusiness._id);
+      await fetchBusinesses();
+    } catch (error) {
+      console.log("Submit Review Error:", error?.response?.data || error);
+
+      Alert.alert(
+        "Review Error",
+        error?.response?.data?.message ||
+          "Could not submit review. Please try again."
+      );
+    } finally {
+      setReviewLoading(false);
+    }
+  };
+
+  const getCategoryIcon = (category = "") => {
+    const value = category.toLowerCase();
+
+    if (value.includes("restaurant")) return "🍽️";
+    if (value.includes("grocery")) return "🛒";
+    if (value.includes("cafe") || value.includes("coffee")) return "☕";
+    if (value.includes("pharmacy")) return "💊";
+    if (value.includes("hotel")) return "🏨";
+    if (value.includes("salon")) return "💇";
+    if (value.includes("repair")) return "🔧";
+    if (value.includes("furniture")) return "🪑";
+
+    return "🏢";
+  };
+
+  const BusinessCard = ({ business }) => (
+    <View style={styles.businessCard}>
+      <View style={styles.businessHeader}>
+        <Text style={styles.businessName}>
+          {getCategoryIcon(business.category)} {business.name}
+        </Text>
+
+        <Text style={styles.ratingText}>
+          {business.averageRating || 0} ⭐
         </Text>
       </View>
+
+      <Text style={styles.businessCategory}>
+        {business.category || "Business"}
+      </Text>
+
+      <Text style={styles.businessText}>
+        {business.description || "No description available"}
+      </Text>
+
+      <Text style={styles.businessText}>
+        <Ionicons name="location-outline" size={13} />{" "}
+        {business.address || "Address not provided"}
+      </Text>
+
+      <Text style={styles.businessText}>
+        Reviews: {business.reviewCount || 0}
+      </Text>
+
+      <TouchableOpacity
+        style={styles.reviewButton}
+        onPress={() => openReviewModal(business)}
+      >
+        <Ionicons name="star-outline" size={17} color="#fff" />
+
+        <Text style={styles.reviewButtonText}>
+          {isBusinessUser ? "View Reviews" : "Review / Rate"}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 
-  // ---------------- PERSONAL DASHBOARD ----------------
   const DashboardView = () => (
     <ScrollView style={{ flex: 1 }}>
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Hello, {userName}!</Text>
-          <Text style={styles.subtitle}>Find your dream home</Text>
+          <Text style={styles.subtitle}>
+            Discover and review local businesses
+          </Text>
         </View>
 
-        <TouchableOpacity onPress={() => router.push("/profile")}>
-          <Ionicons name="person-circle-outline" size={44} color="#378ADD" />
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+          <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.searchBar}>
         <Ionicons name="search-outline" size={20} color="#999" />
-        <Text style={styles.searchText}>Search properties...</Text>
+        <Text style={styles.searchText}>Search businesses...</Text>
       </View>
 
       <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
@@ -153,85 +269,209 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Featured</Text>
+        <Text style={styles.sectionTitle}>Local Businesses</Text>
 
         {loading ? (
-          <Text style={styles.loadingText}>Loading featured...</Text>
+          <ActivityIndicator color="#F9B208" />
+        ) : businesses.length === 0 ? (
+          <Text style={styles.emptyText}>No businesses found yet.</Text>
         ) : (
           <FlatList
-            horizontal
-            data={featuredProperties}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({ item }) => (
-              <View style={styles.featuredCard}>
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                  {item.name}
-                </Text>
-                <Text style={{ color: "#fff" }}>{item.price}</Text>
-              </View>
-            )}
-            showsHorizontalScrollIndicator={false}
+            data={businesses}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => <BusinessCard business={item} />}
+            scrollEnabled={false}
           />
         )}
       </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Nearby</Text>
-
-        {loading ? (
-          <Text style={styles.loadingText}>Loading properties...</Text>
-        ) : (
-          nearbyProperties.map((p) => <PropertyCard key={p.id} property={p} />)
-        )}
-      </View>
     </ScrollView>
   );
 
-  // ---------------- BUSINESS DASHBOARD ----------------
-  const BusinessDashboard = () => (
-    <ScrollView style={{ flex: 1 }}>
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Business Dashboard</Text>
+  const BusinessDashboard = () => {
+    const totalReviews = myBusinesses.reduce((total, business) => {
+      return total + (business.reviewCount || 0);
+    }, 0);
 
-        <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>24</Text>
-            <Text style={styles.statLabel}>Reviews</Text>
+    const averageRating =
+      myBusinesses.length === 0
+        ? "0.0"
+        : (
+            myBusinesses.reduce((total, business) => {
+              return total + (business.averageRating || 0);
+            }, 0) / myBusinesses.length
+          ).toFixed(1);
+
+    return (
+      <ScrollView style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.welcomeText}>Hello, {userName}!</Text>
+            <Text style={styles.subtitle}>Manage your business listings</Text>
           </View>
 
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>4.6</Text>
-            <Text style={styles.statLabel}>Rating</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>3</Text>
-            <Text style={styles.statLabel}>Listings</Text>
-          </View>
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+            <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionText}>Update Business Info</Text>
-        </TouchableOpacity>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Business Dashboard</Text>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionText}>View Reviews</Text>
-        </TouchableOpacity>
+          <View style={styles.statRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{totalReviews}</Text>
+              <Text style={styles.statLabel}>Reviews</Text>
+            </View>
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionText}>Analytics</Text>
-        </TouchableOpacity>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{averageRating}</Text>
+              <Text style={styles.statLabel}>Rating</Text>
+            </View>
 
-        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-          <Ionicons name="log-out-outline" size={18} color="#fff" />
-          <Text style={styles.signOutButtonText}>Logout</Text>
-        </TouchableOpacity>
+            <View style={styles.statCard}>
+              <Text style={styles.statNumber}>{myBusinesses.length}</Text>
+              <Text style={styles.statLabel}>Listings</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => router.push("/add-business")}
+          >
+            <Text style={styles.actionText}>Add Business</Text>
+          </TouchableOpacity>
+
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+            My Businesses
+          </Text>
+
+          {myBusinesses.length === 0 ? (
+            <Text style={styles.emptyText}>
+              You have not added any business listings yet.
+            </Text>
+          ) : (
+            myBusinesses.map((business) => (
+              <BusinessCard key={business._id} business={business} />
+            ))
+          )}
+
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <Ionicons name="log-out-outline" size={18} color="#fff" />
+            <Text style={styles.signOutButtonText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const ReviewModal = () => (
+    <Modal
+      visible={reviewModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setReviewModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <ScrollView>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedBusiness?.name || "Business Reviews"}
+              </Text>
+
+              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                <Ionicons name="close" size={26} color="#222" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Reviews are shown using pseudo names to protect user identity.
+            </Text>
+
+            {!isBusinessUser && (
+              <View style={styles.reviewForm}>
+                <Text style={styles.formLabel}>Your Rating</Text>
+
+                <View style={styles.starRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setReviewRating(star)}
+                    >
+                      <Ionicons
+                        name={star <= reviewRating ? "star" : "star-outline"}
+                        size={32}
+                        color="#F9B208"
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  placeholder="Write your review..."
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  style={styles.reviewInput}
+                  multiline
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.submitReviewButton,
+                    reviewLoading && styles.disabledButton,
+                  ]}
+                  onPress={submitReview}
+                  disabled={reviewLoading}
+                >
+                  {reviewLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.submitReviewText}>Submit Review</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {isBusinessUser && (
+              <View style={styles.infoBox}>
+                <Text style={styles.infoText}>
+                  Business accounts can view reviews but cannot create, edit, or
+                  delete reviews.
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.reviewListTitle}>Reviews</Text>
+
+            {selectedBusinessReviews.length === 0 ? (
+              <Text style={styles.emptyText}>No reviews yet.</Text>
+            ) : (
+              selectedBusinessReviews.map((review) => (
+                <View key={review._id} style={styles.reviewCard}>
+                  <View style={styles.reviewCardHeader}>
+                    <Text style={styles.reviewPseudoName}>
+                      {review.pseudoName || "Anonymous Neighbor"}
+                    </Text>
+
+                    <Text style={styles.reviewRating}>
+                      {review.rating} ⭐
+                    </Text>
+                  </View>
+
+                  <Text style={styles.reviewComment}>
+                    {review.comment || "No comment provided."}
+                  </Text>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </View>
       </View>
-    </ScrollView>
+    </Modal>
   );
 
   const renderDashboard = () => {
-    if (userRole === "business") {
+    if (isBusinessUser) {
       return <BusinessDashboard />;
     }
 
@@ -260,6 +500,8 @@ export default function HomeScreen() {
       </View>
 
       {activeTab === "map" ? <BusinessMap /> : renderDashboard()}
+
+      <ReviewModal />
     </SafeAreaView>
   );
 }
@@ -284,7 +526,7 @@ const styles = StyleSheet.create({
   },
 
   activeTab: {
-    color: "#378ADD",
+    color: "#F9B208",
   },
 
   section: {
@@ -292,9 +534,10 @@ const styles = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 19,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 12,
+    color: "#222",
   },
 
   header: {
@@ -306,16 +549,19 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 22,
     fontWeight: "bold",
+    color: "#222",
   },
 
   subtitle: {
     color: "gray",
+    marginTop: 4,
   },
 
   searchBar: {
     flexDirection: "row",
     padding: 12,
-    margin: 20,
+    marginHorizontal: 20,
+    marginBottom: 10,
     borderRadius: 10,
     backgroundColor: "#f5f5f5",
     alignItems: "center",
@@ -328,7 +574,7 @@ const styles = StyleSheet.create({
 
   signOutButton: {
     flexDirection: "row",
-    backgroundColor: "red",
+    backgroundColor: "#D32F2F",
     margin: 20,
     padding: 12,
     borderRadius: 10,
@@ -342,63 +588,85 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
-  propertyCard: {
-    flexDirection: "row",
+  businessCard: {
     backgroundColor: "#fff",
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 10,
+    padding: 15,
+    marginBottom: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#eee",
     elevation: 2,
   },
 
-  imagePlaceholder: {
-    width: 80,
-    height: 80,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#e6f0ff",
-    borderRadius: 10,
+  businessHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
   },
 
-  propertyInfo: {
-    marginLeft: 10,
+  businessName: {
+    fontWeight: "bold",
+    fontSize: 17,
+    color: "#222",
+    flex: 1,
   },
 
-  propertyName: {
+  ratingText: {
+    color: "#F9B208",
     fontWeight: "bold",
   },
 
-  propertyPrice: {
-    color: "#378ADD",
+  businessCategory: {
+    color: "#F9B208",
+    fontWeight: "bold",
+    marginTop: 5,
   },
 
-  propertyLocation: {
-    fontSize: 12,
-    color: "gray",
+  businessText: {
+    color: "#555",
+    marginTop: 5,
+    lineHeight: 19,
   },
 
-  featuredCard: {
-    width: 200,
-    height: 120,
-    backgroundColor: "#378ADD",
-    marginRight: 10,
+  reviewButton: {
+    flexDirection: "row",
+    backgroundColor: "#F9B208",
+    padding: 12,
     borderRadius: 10,
-    padding: 10,
     justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  reviewButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    marginLeft: 6,
+  },
+
+  emptyText: {
+    color: "gray",
+    lineHeight: 20,
+  },
+
+  statRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 
   statCard: {
     flex: 1,
     backgroundColor: "#f5f5f5",
-    padding: 10,
+    padding: 14,
     margin: 5,
     borderRadius: 10,
     alignItems: "center",
   },
 
   statNumber: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
+    color: "#F9B208",
   },
 
   statLabel: {
@@ -407,20 +675,140 @@ const styles = StyleSheet.create({
   },
 
   actionButton: {
-    backgroundColor: "#378ADD",
-    padding: 12,
+    backgroundColor: "#F9B208",
+    padding: 13,
     borderRadius: 10,
-    marginTop: 10,
+    marginTop: 14,
   },
 
   actionText: {
     color: "#fff",
     textAlign: "center",
+    fontWeight: "bold",
   },
 
-  loadingText: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    justifyContent: "flex-end",
+  },
+
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    padding: 20,
+    maxHeight: "88%",
+  },
+
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  modalTitle: {
+    fontSize: 21,
+    fontWeight: "bold",
+    color: "#222",
+    flex: 1,
+  },
+
+  modalSubtitle: {
     color: "gray",
-    textAlign: "center",
-    padding: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+
+  reviewForm: {
+    backgroundColor: "#f8f8f8",
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 18,
+  },
+
+  formLabel: {
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+
+  starRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 12,
+  },
+
+  reviewInput: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 90,
+    textAlignVertical: "top",
+    marginBottom: 12,
+  },
+
+  submitReviewButton: {
+    backgroundColor: "#F9B208",
+    padding: 13,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  disabledButton: {
+    opacity: 0.7,
+  },
+
+  submitReviewText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  infoBox: {
+    backgroundColor: "#FFF8E1",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 16,
+  },
+
+  infoText: {
+    color: "#555",
+    lineHeight: 20,
+  },
+
+  reviewListTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+  },
+
+  reviewCard: {
+    backgroundColor: "#f8f8f8",
+    padding: 13,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+
+  reviewCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 6,
+  },
+
+  reviewPseudoName: {
+    fontWeight: "bold",
+    color: "#222",
+  },
+
+  reviewRating: {
+    color: "#F9B208",
+    fontWeight: "bold",
+  },
+
+  reviewComment: {
+    color: "#555",
+    lineHeight: 20,
   },
 });
