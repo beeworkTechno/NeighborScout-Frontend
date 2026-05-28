@@ -106,14 +106,34 @@ export default function ProfileScreen() {
     }, 0);
   };
 
-  const getAverageRating = () => {
-    if (!myBusinesses.length) return '0.0';
+  const getReviewedBusinesses = () => {
+    return myBusinesses.filter((business) => {
+      return (business.reviewCount || 0) > 0;
+    });
+  };
 
-    const totalRating = myBusinesses.reduce((total, business) => {
+  const getAverageRating = () => {
+    const reviewedBusinesses = getReviewedBusinesses();
+
+    if (!reviewedBusinesses.length) {
+      return 'No reviews';
+    }
+
+    const totalRating = reviewedBusinesses.reduce((total, business) => {
       return total + (business.averageRating || 0);
     }, 0);
 
-    return (totalRating / myBusinesses.length).toFixed(1);
+    return (totalRating / reviewedBusinesses.length).toFixed(1);
+  };
+
+  const getBusinessRatingText = (business) => {
+    const hasReviews = (business.reviewCount || 0) > 0;
+
+    if (!hasReviews) {
+      return 'No reviews';
+    }
+
+    return String(business.averageRating || 0);
   };
 
   if (loading) {
@@ -133,7 +153,6 @@ export default function ProfileScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
       <View style={styles.headerCard}>
         <View style={styles.avatarCircle}>
           <Text style={styles.avatarText}>
@@ -156,7 +175,6 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      {/* Account Info */}
       <View style={styles.card}>
         <Text style={styles.sectionTitle}>Account Information</Text>
 
@@ -171,7 +189,6 @@ export default function ProfileScreen() {
 
       {isBusinessUser ? (
         <>
-          {/* Business Stats */}
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Business Dashboard</Text>
 
@@ -180,9 +197,12 @@ export default function ProfileScreen() {
               <StatBox label="Reviews" value={String(getTotalReviews())} />
               <StatBox label="Avg Rating" value={getAverageRating()} />
             </View>
+
+            <Text style={styles.noteText}>
+              Businesses with 0 reviews are not counted in the average rating.
+            </Text>
           </View>
 
-          {/* My Businesses */}
           <View style={styles.card}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Businesses</Text>
@@ -218,7 +238,7 @@ export default function ProfileScreen() {
 
                   <View style={styles.businessMetaRow}>
                     <Text style={styles.businessMeta}>
-                      Rating: {business.averageRating || 0}
+                      Rating: {getBusinessRatingText(business)}
                     </Text>
 
                     <Text style={styles.businessMeta}>
@@ -242,13 +262,12 @@ export default function ProfileScreen() {
           <View style={styles.featureList}>
             <FeatureItem text="Browse local businesses" />
             <FeatureItem text="View ratings and reviews" />
-            <FeatureItem text="Share your experience" />
+            <FeatureItem text="Share your experience with a pseudo name" />
             <FeatureItem text="Support trusted businesses nearby" />
           </View>
         </View>
       )}
 
-      {/* Logout */}
       <TouchableOpacity
         style={styles.logoutButton}
         onPress={handleLogout}
@@ -429,15 +448,24 @@ const styles = StyleSheet.create({
   },
 
   statValue: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.primary,
+    textAlign: 'center',
   },
 
   statLabel: {
     fontSize: 12,
     color: colors.muted,
     marginTop: 4,
+  },
+
+  noteText: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 
   smallButton: {
@@ -486,11 +514,13 @@ const styles = StyleSheet.create({
   businessMetaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: 12,
   },
 
   businessMeta: {
     fontSize: 13,
     color: colors.text,
+    flex: 1,
   },
 
   emptyText: {

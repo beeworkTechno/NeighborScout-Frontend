@@ -52,7 +52,6 @@ export default function HomeScreen() {
   const loadHomeData = async () => {
     try {
       setLoading(true);
-
       await fetchUserData();
       await fetchBusinesses();
     } finally {
@@ -105,7 +104,10 @@ export default function HomeScreen() {
           const myBusinessRes = await api.get("/businesses/my");
           setMyBusinesses(myBusinessRes.data || []);
         } catch (error) {
-          console.log("Fetch My Businesses Error:", error?.response?.data || error);
+          console.log(
+            "Fetch My Businesses Error:",
+            error?.response?.data || error
+          );
           setMyBusinesses([]);
         }
       }
@@ -201,6 +203,16 @@ export default function HomeScreen() {
     return "🏢";
   };
 
+  const getBusinessRatingText = (business) => {
+    const hasReviews = (business.reviewCount || 0) > 0;
+
+    if (!hasReviews) {
+      return "No reviews";
+    }
+
+    return `${business.averageRating || 0} ⭐`;
+  };
+
   const BusinessCard = ({ business }) => (
     <View style={styles.businessCard}>
       <View style={styles.businessHeader}>
@@ -209,7 +221,7 @@ export default function HomeScreen() {
         </Text>
 
         <Text style={styles.ratingText}>
-          {business.averageRating || 0} ⭐
+          {getBusinessRatingText(business)}
         </Text>
       </View>
 
@@ -292,13 +304,17 @@ export default function HomeScreen() {
       return total + (business.reviewCount || 0);
     }, 0);
 
+    const reviewedBusinesses = myBusinesses.filter((business) => {
+      return (business.reviewCount || 0) > 0;
+    });
+
     const averageRating =
-      myBusinesses.length === 0
-        ? "0.0"
+      reviewedBusinesses.length === 0
+        ? "No reviews"
         : (
-            myBusinesses.reduce((total, business) => {
+            reviewedBusinesses.reduce((total, business) => {
               return total + (business.averageRating || 0);
-            }, 0) / myBusinesses.length
+            }, 0) / reviewedBusinesses.length
           ).toFixed(1);
 
     return (
@@ -453,9 +469,7 @@ export default function HomeScreen() {
                       {review.pseudoName || "Anonymous Neighbor"}
                     </Text>
 
-                    <Text style={styles.reviewRating}>
-                      {review.rating} ⭐
-                    </Text>
+                    <Text style={styles.reviewRating}>{review.rating} ⭐</Text>
                   </View>
 
                   <Text style={styles.reviewComment}>
@@ -614,6 +628,7 @@ const styles = StyleSheet.create({
   ratingText: {
     color: "#F9B208",
     fontWeight: "bold",
+    textAlign: "right",
   },
 
   businessCategory: {
@@ -664,9 +679,10 @@ const styles = StyleSheet.create({
   },
 
   statNumber: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#F9B208",
+    textAlign: "center",
   },
 
   statLabel: {
