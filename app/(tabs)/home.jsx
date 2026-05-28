@@ -11,6 +11,7 @@ import {
   Modal,
   Alert,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +43,12 @@ export default function HomeScreen() {
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
+
+  const [editingReview, setEditingReview] = useState(null);
+  const [editingRating, setEditingRating] = useState(5);
+  const [editingComment, setEditingComment] = useState("");
+  const [editLoading, setEditLoading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
 
@@ -122,11 +129,30 @@ export default function HomeScreen() {
     router.replace("/(auth)/login");
   };
 
-  const openReviewModal = async (business) => {
-    setSelectedBusiness(business);
+  const resetReviewForm = () => {
     setReviewRating(5);
     setReviewComment("");
+  };
+
+  const resetEditForm = () => {
+    setEditingReview(null);
+    setEditingRating(5);
+    setEditingComment("");
+  };
+
+  const closeReviewModal = () => {
+    setReviewModalVisible(false);
+    setSelectedBusiness(null);
     setSelectedBusinessReviews([]);
+    resetReviewForm();
+    resetEditForm();
+  };
+
+  const openReviewModal = async (business) => {
+    setSelectedBusiness(business);
+    setSelectedBusinessReviews([]);
+    resetReviewForm();
+    resetEditForm();
     setReviewModalVisible(true);
 
     await fetchReviewsForBusiness(business._id);
@@ -169,11 +195,8 @@ export default function HomeScreen() {
         comment: reviewComment.trim(),
       });
 
-      setReviewComment("");
-      setReviewRating(5);
-      setSelectedBusinessReviews([]);
-      setReviewModalVisible(false);
-      setSelectedBusiness(null);
+      resetReviewForm();
+      closeReviewModal();
 
       await fetchBusinesses();
 
@@ -189,6 +212,121 @@ export default function HomeScreen() {
     } finally {
       setReviewLoading(false);
     }
+  };
+
+  const startEditReview = (review) => {
+    setEditingReview(review);
+    setEditingRating(review.rating || 5);
+    setEditingComment(review.comment || "");
+  };
+
+  const cancelEditReview = () => {
+    resetEditForm();
+  };
+
+  const updateReview = async () => {
+    if (!editingReview?._id) {
+      Alert.alert("Error", "No review selected.");
+      return;
+    }
+
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (!editingRating || editingRating < 1 || editingRating > 5) {
+      Alert.alert("Invalid Rating", "Rating must be between 1 and 5.");
+      return;
+    }
+
+    try {
+      setEditLoading(true);
+
+      await api.put(`/reviews/${editingReview._id}`, {
+        rating: editingRating,
+        comment: editingComment.trim(),
+      });
+
+      await fetchReviewsForBusiness(selectedBusiness._id);
+      await fetchBusinesses();
+
+      resetEditForm();
+
+      Alert.alert("Success", "Review updated successfully.");
+    } catch (error) {
+      console.log("Update Review Error:", error?.response?.data || error);
+
+      Alert.alert(
+        "Update Error",
+        error?.response?.data?.message ||
+          "Could not update review. Please try again."
+      );
+    } finally {
+      setEditLoading(false);
+    }
+  };
+
+  const deleteReview = async (reviewId) => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    const performDelete = async () => {
+      try {
+        setDeleteLoadingId(reviewId);
+
+        await api.delete(`/reviews/${reviewId}`);
+
+        await fetchReviewsForBusiness(selectedBusiness._id);
+        await fetchBusinesses();
+
+        if (editingReview?._id === reviewId) {
+          resetEditForm();
+        }
+
+        Alert.alert("Deleted", "Review deleted successfully.");
+      } catch (error) {
+        console.log("Delete Review Error:", error?.response?.data || error);
+
+        Alert.alert(
+          "Delete Error",
+          error?.response?.data?.message ||
+            "Could not delete review. Please try again."
+        );
+      } finally {
+        setDeleteLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Are you sure you want to delete your review?"
+      );
+
+      if (confirmed) {
+        await performDelete();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      "Delete Review",
+      "Are you sure you want to delete your review?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: performDelete,
+        },
+      ]
+    );
   };
 
   const getCategoryIcon = (category = "") => {
@@ -388,7 +526,7 @@ export default function HomeScreen() {
       visible={reviewModalVisible}
       animationType="slide"
       transparent
-      onRequestClose={() => setReviewModalVisible(false)}
+      onRequestClose={closeReviewModal}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
@@ -398,7 +536,7 @@ export default function HomeScreen() {
                 {selectedBusiness?.name || "Business Reviews"}
               </Text>
 
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+              <TouchableOpacity onPress={closeReviewModal}>
                 <Ionicons name="close" size={26} color="#222" />
               </TouchableOpacity>
             </View>
@@ -469,17 +607,111 @@ export default function HomeScreen() {
             ) : (
               selectedBusinessReviews.map((review) => (
                 <View key={review._id} style={styles.reviewCard}>
-                  <View style={styles.reviewCardHeader}>
-                    <Text style={styles.reviewPseudoName}>
-                      {review.pseudoName || "Anonymous Neighbor"}
-                    </Text>
+                  {editingReview?._id === review._id ? (
+                    <>
+                      <Text style={styles.reviewPseudoName}>
+                        Editing your review
+                      </Text>
 
-                    <Text style={styles.reviewRating}>{review.rating} ⭐</Text>
-                  </View>
+                      <View style={styles.starRow}>
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <TouchableOpacity
+                            key={star}
+                            onPress={() => setEditingRating(star)}
+                          >
+                            <Ionicons
+                              name={
+                                star <= editingRating
+                                  ? "star"
+                                  : "star-outline"
+                              }
+                              size={28}
+                              color="#F9B208"
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
 
-                  <Text style={styles.reviewComment}>
-                    {review.comment || "No comment provided."}
-                  </Text>
+                      <TextInput
+                        value={editingComment}
+                        onChangeText={setEditingComment}
+                        placeholder="Update your review..."
+                        style={styles.reviewInput}
+                        multiline
+                        textAlignVertical="top"
+                        blurOnSubmit={false}
+                      />
+
+                      <TouchableOpacity
+                        style={[
+                          styles.submitReviewButton,
+                          editLoading && styles.disabledButton,
+                        ]}
+                        onPress={updateReview}
+                        disabled={editLoading}
+                      >
+                        {editLoading ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.submitReviewText}>
+                            Save Changes
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.cancelEditButton}
+                        onPress={cancelEditReview}
+                      >
+                        <Text style={styles.cancelEditText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  ) : (
+                    <>
+                      <View style={styles.reviewCardHeader}>
+                        <Text style={styles.reviewPseudoName}>
+                          {review.pseudoName || "Anonymous Neighbor"}
+                        </Text>
+
+                        <Text style={styles.reviewRating}>
+                          {review.rating} ⭐
+                        </Text>
+                      </View>
+
+                      <Text style={styles.reviewComment}>
+                        {review.comment || "No comment provided."}
+                      </Text>
+
+                      {review.canEdit && review.canDelete && !isBusinessUser && (
+                        <View style={styles.reviewActionRow}>
+                          <TouchableOpacity
+                            style={styles.editReviewButton}
+                            onPress={() => startEditReview(review)}
+                          >
+                            <Text style={styles.editReviewText}>Edit</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[
+                              styles.deleteReviewButton,
+                              deleteLoadingId === review._id &&
+                                styles.disabledButton,
+                            ]}
+                            onPress={() => deleteReview(review._id)}
+                            disabled={deleteLoadingId === review._id}
+                          >
+                            {deleteLoadingId === review._id ? (
+                              <ActivityIndicator color="#fff" />
+                            ) : (
+                              <Text style={styles.deleteReviewText}>
+                                Delete
+                              </Text>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               ))
             )}
@@ -821,6 +1053,7 @@ const styles = StyleSheet.create({
   reviewPseudoName: {
     fontWeight: "bold",
     color: "#222",
+    marginBottom: 8,
   },
 
   reviewRating: {
@@ -831,5 +1064,48 @@ const styles = StyleSheet.create({
   reviewComment: {
     color: "#555",
     lineHeight: 20,
+  },
+
+  reviewActionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 12,
+  },
+
+  editReviewButton: {
+    flex: 1,
+    backgroundColor: "#F9B208",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  editReviewText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  deleteReviewButton: {
+    flex: 1,
+    backgroundColor: "#D32F2F",
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+
+  deleteReviewText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  cancelEditButton: {
+    padding: 11,
+    alignItems: "center",
+    marginTop: 8,
+  },
+
+  cancelEditText: {
+    color: "#555",
+    fontWeight: "bold",
   },
 });
