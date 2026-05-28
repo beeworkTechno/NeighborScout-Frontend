@@ -28,8 +28,34 @@ const getCategoryIcon = (category = '') => {
   if (value.includes('hotel')) return '🏨';
   if (value.includes('salon')) return '💇';
   if (value.includes('repair')) return '🔧';
+  if (value.includes('furniture')) return '🪑';
+  if (value.includes('school')) return '🏫';
+  if (value.includes('gym')) return '🏋️';
+  if (value.includes('hospital') || value.includes('clinic')) return '🏥';
+  if (value.includes('bank')) return '🏦';
+  if (value.includes('shop') || value.includes('store')) return '🛍️';
 
   return '🏢';
+};
+
+const getMarkerColor = (category = '') => {
+  const value = category.toLowerCase();
+
+  if (value.includes('restaurant')) return '#FF7043';
+  if (value.includes('grocery')) return '#43A047';
+  if (value.includes('cafe') || value.includes('coffee')) return '#8D6E63';
+  if (value.includes('pharmacy')) return '#26A69A';
+  if (value.includes('hotel')) return '#5C6BC0';
+  if (value.includes('salon')) return '#EC407A';
+  if (value.includes('repair')) return '#546E7A';
+  if (value.includes('furniture')) return '#F9B208';
+  if (value.includes('school')) return '#42A5F5';
+  if (value.includes('gym')) return '#AB47BC';
+  if (value.includes('hospital') || value.includes('clinic')) return '#EF5350';
+  if (value.includes('bank')) return '#66BB6A';
+  if (value.includes('shop') || value.includes('store')) return '#FFA726';
+
+  return '#F9B208';
 };
 
 const getBusinessCoordinates = (business) => {
@@ -145,33 +171,64 @@ export default function BusinessMap() {
 
         if (!coordinate) return null;
 
+        const icon = getCategoryIcon(business.category);
+        const markerColor = getMarkerColor(business.category);
+
         return (
           <Marker
             key={business._id}
             coordinate={coordinate}
+            tracksViewChanges={false}
           >
-            <View style={styles.iconMarker}>
+            <View
+              style={[
+                styles.iconMarker,
+                {
+                  borderColor: markerColor,
+                },
+              ]}
+            >
               <Text style={styles.iconText}>
-                {getCategoryIcon(business.category)}
+                {icon}
               </Text>
             </View>
+
+            <View
+              style={[
+                styles.markerPointer,
+                {
+                  borderTopColor: markerColor,
+                },
+              ]}
+            />
 
             <Callout>
               <View style={styles.callout}>
                 <Text style={styles.calloutTitle}>
-                  {business.name}
+                  {icon} {business.name}
                 </Text>
 
-                <Text style={styles.calloutCategory}>
+                <Text
+                  style={[
+                    styles.calloutCategory,
+                    {
+                      color: markerColor,
+                    },
+                  ]}
+                >
                   {business.category || 'Business'}
                 </Text>
 
                 <Text style={styles.calloutText}>
-                  {business.address || 'No address'}
+                  {business.address || 'Address not provided'}
                 </Text>
 
                 <Text style={styles.calloutText}>
                   Rating: {business.averageRating || 0} ⭐
+                </Text>
+
+                <Text style={styles.calloutText}>
+                  Reviews: {business.reviewCount || 0}
                 </Text>
               </View>
             </Callout>
@@ -199,18 +256,40 @@ const styles = StyleSheet.create({
 
   iconMarker: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 7,
-    borderWidth: 1,
-    borderColor: '#DDDDDD',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 3,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+
+  markerPointer: {
+    alignSelf: 'center',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -2,
   },
 
   iconText: {
-    fontSize: 22,
+    fontSize: 23,
   },
 
   callout: {
-    width: 210,
+    width: 220,
   },
 
   calloutTitle: {
@@ -220,7 +299,7 @@ const styles = StyleSheet.create({
   },
 
   calloutCategory: {
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 4,
   },
 
