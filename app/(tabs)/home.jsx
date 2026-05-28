@@ -126,6 +126,7 @@ export default function HomeScreen() {
     setSelectedBusiness(business);
     setReviewRating(5);
     setReviewComment("");
+    setSelectedBusinessReviews([]);
     setReviewModalVisible(true);
 
     await fetchReviewsForBusiness(business._id);
@@ -168,13 +169,15 @@ export default function HomeScreen() {
         comment: reviewComment.trim(),
       });
 
-      Alert.alert("Success", "Review submitted successfully.");
-
       setReviewComment("");
       setReviewRating(5);
+      setSelectedBusinessReviews([]);
+      setReviewModalVisible(false);
+      setSelectedBusiness(null);
 
-      await fetchReviewsForBusiness(selectedBusiness._id);
       await fetchBusinesses();
+
+      Alert.alert("Success", "Review submitted successfully.");
     } catch (error) {
       console.log("Submit Review Error:", error?.response?.data || error);
 
@@ -380,7 +383,7 @@ export default function HomeScreen() {
     );
   };
 
-  const ReviewModal = () => (
+  const renderReviewModal = () => (
     <Modal
       visible={reviewModalVisible}
       animationType="slide"
@@ -389,7 +392,7 @@ export default function HomeScreen() {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <ScrollView>
+          <ScrollView keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {selectedBusiness?.name || "Business Reviews"}
@@ -429,6 +432,8 @@ export default function HomeScreen() {
                   onChangeText={setReviewComment}
                   style={styles.reviewInput}
                   multiline
+                  textAlignVertical="top"
+                  blurOnSubmit={false}
                 />
 
                 <TouchableOpacity
@@ -515,7 +520,7 @@ export default function HomeScreen() {
 
       {activeTab === "map" ? <BusinessMap /> : renderDashboard()}
 
-      <ReviewModal />
+      {renderReviewModal()}
     </SafeAreaView>
   );
 }
