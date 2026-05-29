@@ -38,6 +38,8 @@ export default function HomeScreen() {
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [mapSelectedBusiness, setMapSelectedBusiness] = useState(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [selectedBusinessReviews, setSelectedBusinessReviews] = useState([]);
@@ -366,6 +368,28 @@ export default function HomeScreen() {
     return `${business.averageRating || 0} ⭐`;
   };
 
+  const getFilteredBusinesses = (list) => {
+    const query = searchQuery.trim().toLowerCase();
+
+    if (!query) {
+      return list;
+    }
+
+    return list.filter((business) => {
+      const name = business.name?.toLowerCase() || "";
+      const category = business.category?.toLowerCase() || "";
+      const address = business.address?.toLowerCase() || "";
+      const description = business.description?.toLowerCase() || "";
+
+      return (
+        name.includes(query) ||
+        category.includes(query) ||
+        address.includes(query) ||
+        description.includes(query)
+      );
+    });
+  };
+
   const BusinessCard = ({ business }) => (
     <View style={styles.businessCard}>
       <View style={styles.businessHeader}>
@@ -424,51 +448,75 @@ export default function HomeScreen() {
     </View>
   );
 
-  const DashboardView = () => (
-    <ScrollView style={{ flex: 1 }}>
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.welcomeText}>Hello, {userName}!</Text>
-          <Text style={styles.subtitle}>
-            Discover and review local businesses
-          </Text>
+  const DashboardView = () => {
+    const filteredBusinesses = getFilteredBusinesses(businesses);
+
+    return (
+      <ScrollView style={{ flex: 1 }}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.welcomeText}>Hello, {userName}!</Text>
+            <Text style={styles.subtitle}>
+              Discover and review local businesses
+            </Text>
+          </View>
+
+          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
+            <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
+          </TouchableOpacity>
         </View>
 
-        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-          <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={20} color="#999" />
 
-      <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#999" />
-        <Text style={styles.searchText}>Search businesses...</Text>
-      </View>
-
-      <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
-        <Ionicons name="log-out-outline" size={18} color="#fff" />
-        <Text style={styles.signOutButtonText}>Logout</Text>
-      </TouchableOpacity>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Local Businesses</Text>
-
-        {loading ? (
-          <ActivityIndicator color="#F9B208" />
-        ) : businesses.length === 0 ? (
-          <Text style={styles.emptyText}>No businesses found yet.</Text>
-        ) : (
-          <FlatList
-            data={businesses}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => <BusinessCard business={item} />}
-            scrollEnabled={false}
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search businesses by name, category, or address..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
           />
-        )}
-      </View>
-    </ScrollView>
-  );
+
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={20} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Ionicons name="log-out-outline" size={18} color="#fff" />
+          <Text style={styles.signOutButtonText}>Logout</Text>
+        </TouchableOpacity>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Local Businesses</Text>
+
+          {loading ? (
+            <ActivityIndicator color="#F9B208" />
+          ) : filteredBusinesses.length === 0 ? (
+            <Text style={styles.emptyText}>
+              {searchQuery.trim()
+                ? "No businesses match your search."
+                : "No businesses found yet."}
+            </Text>
+          ) : (
+            <FlatList
+              data={filteredBusinesses}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => <BusinessCard business={item} />}
+              scrollEnabled={false}
+            />
+          )}
+        </View>
+      </ScrollView>
+    );
+  };
 
   const BusinessDashboard = () => {
+    const filteredMyBusinesses = getFilteredBusinesses(myBusinesses);
+
     const totalReviews = myBusinesses.reduce((total, business) => {
       return total + (business.reviewCount || 0);
     }, 0);
@@ -526,6 +574,25 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>Add Business</Text>
           </TouchableOpacity>
 
+          <View style={styles.searchBarBusiness}>
+            <Ionicons name="search-outline" size={20} color="#999" />
+
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search my businesses..."
+              placeholderTextColor="#999"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="none"
+            />
+
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery("")}>
+                <Ionicons name="close-circle" size={20} color="#999" />
+              </TouchableOpacity>
+            )}
+          </View>
+
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
             My Businesses
           </Text>
@@ -534,8 +601,12 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>
               You have not added any business listings yet.
             </Text>
+          ) : filteredMyBusinesses.length === 0 ? (
+            <Text style={styles.emptyText}>
+              No businesses match your search.
+            </Text>
           ) : (
-            myBusinesses.map((business) => (
+            filteredMyBusinesses.map((business) => (
               <BusinessCard key={business._id} business={business} />
             ))
           )}
@@ -850,9 +921,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
-  searchText: {
+  searchBarBusiness: {
+    flexDirection: "row",
+    padding: 12,
+    marginTop: 16,
+    borderRadius: 10,
+    backgroundColor: "#f5f5f5",
+    alignItems: "center",
+  },
+
+  searchInput: {
+    flex: 1,
     marginLeft: 10,
-    color: "#999",
+    color: "#222",
+    fontSize: 15,
+    outlineStyle: "none",
   },
 
   signOutButton: {
