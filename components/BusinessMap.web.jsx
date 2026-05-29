@@ -206,6 +206,14 @@ export default function BusinessMap({ selectedBusinessFromList }) {
               padding: 0;
             }
 
+            .marker-wrapper {
+              display: flex;
+              align-items: center;
+              gap: 6px;
+              width: max-content;
+              transform: translateX(-22px);
+            }
+
             .business-marker {
               width: 44px;
               height: 44px;
@@ -218,6 +226,46 @@ export default function BusinessMap({ selectedBusinessFromList }) {
               font-size: 23px;
               box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
               cursor: pointer;
+              transition: transform 0.15s ease, box-shadow 0.15s ease;
+            }
+
+            .business-marker:hover {
+              transform: scale(1.12);
+              box-shadow: 0 5px 14px rgba(0, 0, 0, 0.4);
+            }
+
+            .marker-name-label {
+              display: none;
+              background: white;
+              color: #222;
+              font-size: 13px;
+              font-weight: bold;
+              padding: 6px 9px;
+              border-radius: 12px;
+              box-shadow: 0 3px 9px rgba(0, 0, 0, 0.25);
+              max-width: 180px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              pointer-events: none;
+            }
+
+            body.show-business-labels .marker-name-label {
+              display: inline-block;
+            }
+
+            .business-tooltip {
+              background: #222;
+              color: white;
+              border: none;
+              border-radius: 10px;
+              padding: 7px 10px;
+              font-weight: bold;
+              box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+            }
+
+            .business-tooltip::before {
+              border-top-color: #222;
             }
 
             .location-button {
@@ -274,6 +322,25 @@ export default function BusinessMap({ selectedBusinessFromList }) {
               attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
+            function escapeHtml(value) {
+              return String(value || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+            }
+
+            function updateBusinessLabels() {
+              if (map.getZoom() >= 16) {
+                document.body.classList.add('show-business-labels');
+              } else {
+                document.body.classList.remove('show-business-labels');
+              }
+            }
+
+            map.on('zoomend', updateBusinessLabels);
+
             map.on('click', function () {
               window.parent.postMessage(
                 {
@@ -284,8 +351,16 @@ export default function BusinessMap({ selectedBusinessFromList }) {
             });
 
             businesses.forEach((business) => {
+              const safeName = escapeHtml(business.name);
+
               const icon = L.divIcon({
-                html: '<div class="business-marker">' + business.icon + '</div>',
+                html:
+                  '<div class="marker-wrapper">' +
+                    '<div class="business-marker" title="' + safeName + '">' +
+                      business.icon +
+                    '</div>' +
+                    '<div class="marker-name-label">' + safeName + '</div>' +
+                  '</div>',
                 className: '',
                 iconSize: [44, 44],
                 iconAnchor: [22, 22],
@@ -297,6 +372,13 @@ export default function BusinessMap({ selectedBusinessFromList }) {
                   icon: icon,
                 }
               ).addTo(map);
+
+              marker.bindTooltip(safeName, {
+                direction: 'top',
+                offset: [0, -24],
+                opacity: 0.95,
+                className: 'business-tooltip',
+              });
 
               marker.on('click', function (event) {
                 L.DomEvent.stopPropagation(event);
@@ -322,6 +404,8 @@ export default function BusinessMap({ selectedBusinessFromList }) {
                 maxZoom: 15,
               });
             }
+
+            updateBusinessLabels();
 
             function goToCurrentLocation() {
               if (!navigator.geolocation) {
@@ -350,6 +434,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
                   }
 
                   map.setView([latitude, longitude], 16);
+                  updateBusinessLabels();
                 },
                 function () {
                   alert('Could not get your current location.');
@@ -360,6 +445,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
             window.addEventListener('message', function (event) {
               if (event.data?.type === 'FOCUS_BUSINESS') {
                 map.setView([event.data.latitude, event.data.longitude], 17);
+                updateBusinessLabels();
 
                 const selected = businesses.find(
                   (business) => business._id === event.data.businessId
