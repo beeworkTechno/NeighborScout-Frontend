@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
 } from "react-native";
 
+import { useRouter } from "expo-router";
+
 import api from "../src/services/api";
 import colors from "../src/styles/colors";
 
@@ -71,6 +73,7 @@ const getPopularBusinesses = (businesses) => {
 };
 
 export default function BusinessMap({ selectedBusinessFromList }) {
+  const router = useRouter();
   const iframeRef = useRef(null);
 
   const [businesses, setBusinesses] = useState([]);
@@ -117,6 +120,12 @@ export default function BusinessMap({ selectedBusinessFromList }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const openBusinessPage = (business) => {
+    if (!business?._id) return;
+
+    router.push(`/business/${business._id}`);
   };
 
   const mapHtml = useMemo(() => {
@@ -434,10 +443,17 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       />
 
       {selectedBusiness && (
-        <View style={styles.businessCard}>
+        <TouchableOpacity
+          style={styles.businessCard}
+          activeOpacity={0.9}
+          onPress={() => openBusinessPage(selectedBusiness)}
+        >
           <TouchableOpacity
             style={styles.closeButton}
-            onPress={() => setSelectedBusiness(null)}
+            onPress={(event) => {
+              event.stopPropagation();
+              setSelectedBusiness(null);
+            }}
           >
             <Text style={styles.closeText}>×</Text>
           </TouchableOpacity>
@@ -465,7 +481,13 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           <Text style={styles.businessText}>
             Reviews: {selectedBusiness.reviewCount || 0}
           </Text>
-        </View>
+
+          <View style={styles.openPageHint}>
+            <Text style={styles.openPageHintText}>
+              Tap card to open business page
+            </Text>
+          </View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -501,6 +523,7 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 5,
     boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+    cursor: "pointer",
   },
 
   closeButton: {
@@ -539,5 +562,19 @@ const styles = StyleSheet.create({
   businessText: {
     color: "#555",
     marginTop: 3,
+  },
+
+  openPageHint: {
+    marginTop: 12,
+    backgroundColor: "#222",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  openPageHintText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
   },
 });

@@ -11,6 +11,7 @@ import {
 import MapView, { Marker, UrlTile } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 import api from "../src/services/api";
 
@@ -133,6 +134,7 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
 };
 
 export default function BusinessMap({ selectedBusinessFromList }) {
+  const router = useRouter();
   const mapRef = useRef(null);
 
   const [businesses, setBusinesses] = useState([]);
@@ -240,6 +242,12 @@ export default function BusinessMap({ selectedBusinessFromList }) {
     setSelectedBusiness(null);
   };
 
+  const openBusinessPage = (business) => {
+    if (!business?._id) return;
+
+    router.push(`/business/${business._id}`);
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -330,7 +338,11 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       </TouchableOpacity>
 
       {selectedBusiness && (
-        <View style={styles.businessCard}>
+        <TouchableOpacity
+          style={styles.businessCard}
+          activeOpacity={0.9}
+          onPress={() => openBusinessPage(selectedBusiness)}
+        >
           <TouchableOpacity
             style={styles.closeButton}
             onPress={closeBusinessCard}
@@ -363,7 +375,14 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           <Text style={styles.businessText}>
             Reviews: {selectedBusiness.reviewCount || 0}
           </Text>
-        </View>
+
+          <View style={styles.openPageHint}>
+            <Ionicons name="open-outline" size={16} color="#fff" />
+            <Text style={styles.openPageHintText}>
+              Tap card to open business page
+            </Text>
+          </View>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -502,5 +521,22 @@ const styles = StyleSheet.create({
   businessText: {
     color: "#555",
     marginTop: 3,
+  },
+
+  openPageHint: {
+    marginTop: 12,
+    backgroundColor: "#222",
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+  },
+
+  openPageHintText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 13,
+    marginLeft: 6,
   },
 });
