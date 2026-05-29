@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -6,54 +6,54 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
-} from 'react-native';
+} from "react-native";
 
-import MapView, { Marker, UrlTile } from 'react-native-maps';
+import MapView, { Marker, UrlTile } from "react-native-maps";
+import * as Location from "expo-location";
+import { Ionicons } from "@expo/vector-icons";
 
-import * as Location from 'expo-location';
-import { Ionicons } from '@expo/vector-icons';
-import api from '../src/services/api';
+import api from "../src/services/api";
 
-console.log('🔥 Native Map Loaded');
+console.log("🔥 Native Map Loaded");
 
-const getCategoryIcon = (category = '') => {
+const getCategoryIcon = (category = "") => {
   const value = category.toLowerCase();
 
-  if (value.includes('restaurant')) return '🍽️';
-  if (value.includes('grocery')) return '🛒';
-  if (value.includes('cafe') || value.includes('coffee')) return '☕';
-  if (value.includes('pharmacy')) return '💊';
-  if (value.includes('hotel')) return '🏨';
-  if (value.includes('salon')) return '💇';
-  if (value.includes('repair')) return '🔧';
-  if (value.includes('furniture')) return '🪑';
-  if (value.includes('school')) return '🏫';
-  if (value.includes('gym')) return '🏋️';
-  if (value.includes('hospital') || value.includes('clinic')) return '🏥';
-  if (value.includes('bank')) return '🏦';
-  if (value.includes('shop') || value.includes('store')) return '🛍️';
+  if (value.includes("restaurant")) return "🍽️";
+  if (value.includes("grocery")) return "🛒";
+  if (value.includes("cafe") || value.includes("coffee")) return "☕";
+  if (value.includes("pharmacy")) return "💊";
+  if (value.includes("hotel")) return "🏨";
+  if (value.includes("salon")) return "💇";
+  if (value.includes("repair")) return "🔧";
+  if (value.includes("furniture")) return "🪑";
+  if (value.includes("school")) return "🏫";
+  if (value.includes("gym")) return "🏋️";
+  if (value.includes("hospital") || value.includes("clinic")) return "🏥";
+  if (value.includes("bank")) return "🏦";
+  if (value.includes("shop") || value.includes("store")) return "🛍️";
 
-  return '🏢';
+  return "🏢";
 };
 
-const getMarkerColor = (category = '') => {
+const getMarkerColor = (category = "") => {
   const value = category.toLowerCase();
 
-  if (value.includes('restaurant')) return '#FF7043';
-  if (value.includes('grocery')) return '#43A047';
-  if (value.includes('cafe') || value.includes('coffee')) return '#8D6E63';
-  if (value.includes('pharmacy')) return '#26A69A';
-  if (value.includes('hotel')) return '#5C6BC0';
-  if (value.includes('salon')) return '#EC407A';
-  if (value.includes('repair')) return '#546E7A';
-  if (value.includes('furniture')) return '#F9B208';
-  if (value.includes('school')) return '#42A5F5';
-  if (value.includes('gym')) return '#AB47BC';
-  if (value.includes('hospital') || value.includes('clinic')) return '#EF5350';
-  if (value.includes('bank')) return '#66BB6A';
-  if (value.includes('shop') || value.includes('store')) return '#FFA726';
+  if (value.includes("restaurant")) return "#FF7043";
+  if (value.includes("grocery")) return "#43A047";
+  if (value.includes("cafe") || value.includes("coffee")) return "#8D6E63";
+  if (value.includes("pharmacy")) return "#26A69A";
+  if (value.includes("hotel")) return "#5C6BC0";
+  if (value.includes("salon")) return "#EC407A";
+  if (value.includes("repair")) return "#546E7A";
+  if (value.includes("furniture")) return "#F9B208";
+  if (value.includes("school")) return "#42A5F5";
+  if (value.includes("gym")) return "#AB47BC";
+  if (value.includes("hospital") || value.includes("clinic")) return "#EF5350";
+  if (value.includes("bank")) return "#66BB6A";
+  if (value.includes("shop") || value.includes("store")) return "#FFA726";
 
-  return '#F9B208';
+  return "#F9B208";
 };
 
 const getBusinessCoordinates = (business) => {
@@ -132,7 +132,7 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
   };
 };
 
-export default function BusinessMap() {
+export default function BusinessMap({ selectedBusinessFromList }) {
   const mapRef = useRef(null);
 
   const [businesses, setBusinesses] = useState([]);
@@ -144,6 +144,31 @@ export default function BusinessMap() {
   useEffect(() => {
     loadMapData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedBusinessFromList || !mapRef.current) return;
+
+    const coordinate = getBusinessCoordinates(selectedBusinessFromList);
+
+    if (!coordinate) return;
+
+    const icon = getCategoryIcon(selectedBusinessFromList.category);
+
+    setSelectedBusiness({
+      ...selectedBusinessFromList,
+      icon,
+    });
+
+    mapRef.current.animateToRegion(
+      {
+        latitude: coordinate.latitude,
+        longitude: coordinate.longitude,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      },
+      700
+    );
+  }, [selectedBusinessFromList]);
 
   const loadMapData = async () => {
     try {
@@ -160,11 +185,8 @@ export default function BusinessMap() {
 
       const { status } = await Location.requestForegroundPermissionsAsync();
 
-      if (status !== 'granted') {
-        Alert.alert(
-          'Permission denied',
-          'Location permission was denied.'
-        );
+      if (status !== "granted") {
+        Alert.alert("Permission denied", "Location permission was denied.");
         return null;
       }
 
@@ -191,8 +213,8 @@ export default function BusinessMap() {
 
       return currentLocation;
     } catch (error) {
-      console.log('Location Error:', error);
-      Alert.alert('Location Error', 'Could not get your current location.');
+      console.log("Location Error:", error);
+      Alert.alert("Location Error", "Could not get your current location.");
       return null;
     } finally {
       setLocationLoading(false);
@@ -201,7 +223,7 @@ export default function BusinessMap() {
 
   const fetchBusinesses = async () => {
     try {
-      const res = await api.get('/businesses');
+      const res = await api.get("/businesses");
 
       const businessesWithLocation = (res.data || []).filter((business) => {
         return getBusinessCoordinates(business) !== null;
@@ -209,8 +231,8 @@ export default function BusinessMap() {
 
       setBusinesses(businessesWithLocation);
     } catch (error) {
-      console.log('Fetch Businesses Error:', error?.response?.data || error);
-      Alert.alert('Error', 'Could not load businesses.');
+      console.log("Fetch Businesses Error:", error?.response?.data || error);
+      Alert.alert("Error", "Could not load businesses.");
     }
   };
 
@@ -261,6 +283,7 @@ export default function BusinessMap() {
               tracksViewChanges={false}
               onPress={(event) => {
                 event.stopPropagation();
+
                 setSelectedBusiness({
                   ...business,
                   icon,
@@ -320,21 +343,21 @@ export default function BusinessMap() {
           </Text>
 
           <Text style={styles.businessCategory}>
-            {selectedBusiness.category || 'Business'}
+            {selectedBusiness.category || "Business"}
           </Text>
 
           <Text style={styles.businessDescription}>
-            {selectedBusiness.description || 'No description available'}
+            {selectedBusiness.description || "No description available"}
           </Text>
 
           <Text style={styles.businessText}>
-            📍 {selectedBusiness.address || 'Address not provided'}
+            📍 {selectedBusiness.address || "Address not provided"}
           </Text>
 
           <Text style={styles.businessText}>
             {(selectedBusiness.reviewCount || 0) > 0
               ? `⭐ ${selectedBusiness.averageRating || 0} rating`
-              : 'No reviews yet'}
+              : "No reviews yet"}
           </Text>
 
           <Text style={styles.businessText}>
@@ -357,8 +380,8 @@ const styles = StyleSheet.create({
 
   loader: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   loaderText: {
@@ -366,17 +389,17 @@ const styles = StyleSheet.create({
   },
 
   currentLocationButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 18,
     right: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
     paddingVertical: 11,
     paddingHorizontal: 14,
     borderRadius: 30,
     elevation: 5,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 5,
     shadowOffset: {
@@ -387,20 +410,20 @@ const styles = StyleSheet.create({
 
   currentLocationText: {
     marginLeft: 6,
-    color: '#222',
-    fontWeight: 'bold',
+    color: "#222",
+    fontWeight: "bold",
   },
 
   iconMarker: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     width: 44,
     height: 44,
     borderRadius: 22,
     borderWidth: 3,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     elevation: 4,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.25,
     shadowRadius: 4,
     shadowOffset: {
@@ -410,14 +433,14 @@ const styles = StyleSheet.create({
   },
 
   markerPointer: {
-    alignSelf: 'center',
+    alignSelf: "center",
     width: 0,
     height: 0,
     borderLeftWidth: 7,
     borderRightWidth: 7,
     borderTopWidth: 10,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
     marginTop: -2,
   },
 
@@ -426,15 +449,15 @@ const styles = StyleSheet.create({
   },
 
   businessCard: {
-    position: 'absolute',
+    position: "absolute",
     left: 16,
     right: 16,
     bottom: 20,
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 18,
     padding: 16,
     elevation: 6,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.28,
     shadowRadius: 8,
     shadowOffset: {
@@ -444,7 +467,7 @@ const styles = StyleSheet.create({
   },
 
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 8,
     right: 12,
     zIndex: 10,
@@ -452,32 +475,32 @@ const styles = StyleSheet.create({
 
   closeText: {
     fontSize: 28,
-    color: '#555',
-    fontWeight: 'bold',
+    color: "#555",
+    fontWeight: "bold",
   },
 
   businessName: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: "bold",
+    color: "#222",
     marginBottom: 4,
     paddingRight: 28,
   },
 
   businessCategory: {
-    color: '#F9B208',
-    fontWeight: 'bold',
+    color: "#F9B208",
+    fontWeight: "bold",
     marginBottom: 6,
   },
 
   businessDescription: {
-    color: '#555',
+    color: "#555",
     marginBottom: 6,
     lineHeight: 20,
   },
 
   businessText: {
-    color: '#555',
+    color: "#555",
     marginTop: 3,
   },
 });

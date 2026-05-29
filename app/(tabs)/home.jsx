@@ -130,6 +130,11 @@ export default function HomeScreen() {
     router.replace("/(auth)/login");
   };
 
+  const handleViewInMap = (business) => {
+    setMapSelectedBusiness(business);
+    setActiveTab("map");
+  };
+
   const resetReviewForm = () => {
     setReviewRating(5);
     setReviewComment("");
@@ -330,11 +335,6 @@ export default function HomeScreen() {
     );
   };
 
-  const handleViewInMap = (business) => {
-    setMapSelectedBusiness(business);
-    setActiveTab("map");
-  };
-
   const getCategoryIcon = (category = "") => {
     const value = category.toLowerCase();
 
@@ -399,7 +399,6 @@ export default function HomeScreen() {
         onPress={() => handleViewInMap(business)}
       >
         <Ionicons name="map-outline" size={17} color="#fff" />
-
         <Text style={styles.viewMapButtonText}>View in Map</Text>
       </TouchableOpacity>
 
@@ -408,7 +407,6 @@ export default function HomeScreen() {
         onPress={() => router.push(`/business/${business._id}`)}
       >
         <Ionicons name="open-outline" size={17} color="#fff" />
-
         <Text style={styles.viewPageButtonText}>Open Business Page</Text>
       </TouchableOpacity>
 
