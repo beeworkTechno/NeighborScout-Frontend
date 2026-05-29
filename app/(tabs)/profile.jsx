@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
+
 import api from '../../src/services/api';
 import colors from '../../src/styles/colors';
-import { clearToken } from '../../utils/tokenUtils';
+import { clearToken, getToken } from '../../utils/tokenUtils';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -27,9 +28,14 @@ export default function ProfileScreen() {
 
   const fetchProfile = async () => {
     try {
-      const userRes = await api.get('/auth/me');
+      const token = await getToken();
 
-      console.log('Profile user:', userRes.data);
+      if (!token) {
+        router.replace('/(auth)/login');
+        return;
+      }
+
+      const userRes = await api.get('/auth/me');
 
       setUser(userRes.data);
 

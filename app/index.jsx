@@ -1,37 +1,42 @@
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
-import { useRouter } from "expo-router";
+import { useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 
-export default function LandingScreen() {
+import { useRouter } from "expo-router";
+import { getToken } from "../utils/tokenUtils";
+
+export default function IndexScreen() {
   const router = useRouter();
+
+  useEffect(() => {
+    checkLoginStatus();
+  }, []);
+
+  const checkLoginStatus = async () => {
+    try {
+      const token = await getToken();
+
+      setTimeout(() => {
+        if (token) {
+          router.replace("/(tabs)/home");
+        } else {
+          router.replace("/(auth)/login");
+        }
+      }, 300);
+    } catch (error) {
+      console.log("Auto Login Check Error:", error);
+      router.replace("/(auth)/login");
+    }
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to NeighborScout</Text>
-
-      <Text style={styles.subtitle}>
-        Browse featured homes, discover nearby listings, and manage your saved search.
-      </Text>
-
-      <TouchableOpacity
-        style={styles.loginButton}
-        onPress={() => router.push("/login")}
-      >
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.signupButton}
-        onPress={() => router.push("/register")}
-      >
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.homeLink}
-        onPress={() => router.push("/home")}
-      >
-        <Text style={styles.homeLinkText}>Continue to Home</Text>
-      </TouchableOpacity>
+      <ActivityIndicator size="large" color="#F9B208" />
+      <Text style={styles.text}>Checking login...</Text>
     </View>
   );
 }
@@ -39,51 +44,16 @@ export default function LandingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f8f9fa",
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: "#f8f9fa",
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1a1a2e",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    textAlign: "center",
-    marginBottom: 40,
-    lineHeight: 24,
-  },
-  loginButton: {
-    width: "100%",
-    backgroundColor: "#378ADD",
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  signupButton: {
-    width: "100%",
-    backgroundColor: "#10b981",
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-  },
-  homeLink: {
-    marginTop: 20,
-  },
-  homeLinkText: {
-    color: "#378ADD",
-    fontWeight: "700",
+
+  text: {
+    marginTop: 12,
+    color: "#555",
     fontSize: 15,
-  },
-  buttonText: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 16,
+    fontWeight: "600",
   },
 });

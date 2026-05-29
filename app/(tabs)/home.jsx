@@ -60,6 +60,14 @@ export default function HomeScreen() {
   const loadHomeData = async () => {
     try {
       setLoading(true);
+
+      const token = await getToken();
+
+      if (!token) {
+        router.replace("/(auth)/login");
+        return;
+      }
+
       await fetchUserData();
       await fetchBusinesses();
     } finally {
@@ -69,13 +77,6 @@ export default function HomeScreen() {
 
   const fetchUserData = async () => {
     try {
-      const token = await getToken();
-
-      if (!token) {
-        router.replace("/(auth)/login");
-        return;
-      }
-
       const response = await api.get("/auth/me");
 
       setUserName(response.data.name || "Neighbor");

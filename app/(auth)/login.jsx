@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import axios from 'axios';
 
-import { saveToken, saveRole } from '../../utils/tokenUtils';
+import { saveToken, saveRole, getToken } from '../../utils/tokenUtils';
 import { useGoogleAuth } from '../../src/services/googleAuthService';
 import { API_URL } from '../../src/services/api';
 
@@ -34,15 +34,29 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [checkingToken, setCheckingToken] = useState(true);
 
-  // ==========================
-  // Google Auth
-  // ==========================
   const { response, promptAsync } = useGoogleAuth();
 
-  // ==========================
-  // Helpers
-  // ==========================
+  useEffect(() => {
+    checkExistingToken();
+  }, []);
+
+  const checkExistingToken = async () => {
+    try {
+      const token = await getToken();
+
+      if (token) {
+        router.replace('/(tabs)/home');
+        return;
+      }
+    } catch (error) {
+      console.log('Check Existing Token Error:', error);
+    } finally {
+      setCheckingToken(false);
+    }
+  };
+
   const isValidEmail = (value) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   };
@@ -65,7 +79,6 @@ export default function LoginScreen() {
 
   const validateLogin = () => {
     const newErrors = {};
-
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
@@ -83,9 +96,6 @@ export default function LoginScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ==========================
-  // Normal Login
-  // ==========================
   const handleLogin = async () => {
     if (!validateLogin()) {
       return;
@@ -100,15 +110,17 @@ export default function LoginScreen() {
         password,
       });
 
+      if (!res.data.token) {
+        Alert.alert('Login Error', 'No token received from server.');
+        return;
+      }
+
       await saveToken(res.data.token);
 
       const role = res.data.role || res.data.user?.role || 'personal';
-
       await saveRole(role);
 
-      Alert.alert('Success', 'Login successful');
-
-      router.replace('/home');
+      router.replace('/(tabs)/home');
     } catch (error) {
       console.log('Login Error:', error?.response?.data || error);
 
@@ -124,16 +136,11 @@ export default function LoginScreen() {
     }
   };
 
-  // ==========================
-  // Google Login
-  // ==========================
   useEffect(() => {
     const handleGoogleLogin = async () => {
       try {
         if (response?.type === 'success') {
           setGoogleLoading(true);
-
-          console.log('Google response:', response);
 
           const token = response.authentication?.idToken;
 
@@ -146,15 +153,17 @@ export default function LoginScreen() {
             token,
           });
 
+          if (!res.data.token) {
+            Alert.alert('Google Login Error', 'No token received from server.');
+            return;
+          }
+
           await saveToken(res.data.token);
 
           const role = res.data.role || res.data.user?.role || 'personal';
-
           await saveRole(role);
 
-          Alert.alert('Success', 'Google login successful');
-
-          router.replace('/home');
+          router.replace('/(tabs)/home');
         }
       } catch (error) {
         console.log('Google Login Error:', error?.response?.data || error);
@@ -177,6 +186,15 @@ export default function LoginScreen() {
     handleGoogleLogin();
   }, [response]);
 
+  if (checkingToken) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={styles.loadingText}>Checking login...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>NeighborScout Login</Text>
@@ -185,7 +203,6 @@ export default function LoginScreen() {
         <Text style={styles.formError}>{errors.form}</Text>
       ) : null}
 
-      {/* Email */}
       <TextInput
         placeholder="Email"
         value={email}
@@ -212,7 +229,6 @@ export default function LoginScreen() {
         <Text style={styles.errorText}>{errors.email}</Text>
       ) : null}
 
-      {/* Password */}
       <TextInput
         placeholder="Password"
         value={password}
@@ -238,7 +254,6 @@ export default function LoginScreen() {
         <Text style={styles.errorText}>{errors.password}</Text>
       ) : null}
 
-      {/* Login Button */}
       <TouchableOpacity
         style={[
           styles.loginButton,
@@ -254,7 +269,6 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Google Login */}
       <TouchableOpacity
         style={[
           styles.googleButton,
@@ -270,8 +284,7 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Register */}
-      <TouchableOpacity onPress={() => router.push('/register')}>
+      <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
         <Text style={styles.registerText}>
           Don't have an account? Register
         </Text>
@@ -281,6 +294,18 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.bg,
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: colors.text,
+  },
+
   container: {
     flex: 1,
     justifyContent: 'center',
