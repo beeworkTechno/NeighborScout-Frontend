@@ -36,6 +36,7 @@ export default function HomeScreen() {
 
   const [businesses, setBusinesses] = useState([]);
   const [myBusinesses, setMyBusinesses] = useState([]);
+  const [mapSelectedBusiness, setMapSelectedBusiness] = useState(null);
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -329,6 +330,11 @@ export default function HomeScreen() {
     );
   };
 
+  const handleViewInMap = (business) => {
+    setMapSelectedBusiness(business);
+    setActiveTab("map");
+  };
+
   const getCategoryIcon = (category = "") => {
     const value = category.toLowerCase();
 
@@ -387,6 +393,15 @@ export default function HomeScreen() {
       <Text style={styles.businessText}>
         Reviews: {business.reviewCount || 0}
       </Text>
+
+      <TouchableOpacity
+        style={styles.viewMapButton}
+        onPress={() => handleViewInMap(business)}
+      >
+        <Ionicons name="map-outline" size={17} color="#fff" />
+
+        <Text style={styles.viewMapButtonText}>View in Map</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.viewPageButton}
@@ -764,7 +779,11 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {activeTab === "map" ? <BusinessMap /> : renderDashboard()}
+      {activeTab === "map" ? (
+        <BusinessMap selectedBusinessFromList={mapSelectedBusiness} />
+      ) : (
+        renderDashboard()
+      )}
 
       {renderReviewModal()}
     </SafeAreaView>
@@ -894,6 +913,22 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  viewMapButton: {
+    flexDirection: "row",
+    backgroundColor: "#1976D2",
+    padding: 12,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  viewMapButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    marginLeft: 6,
+  },
+
   viewPageButton: {
     flexDirection: "row",
     backgroundColor: "#222",
@@ -901,7 +936,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 10,
   },
 
   viewPageButtonText: {
