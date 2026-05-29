@@ -340,6 +340,11 @@ export default function HomeScreen() {
     if (value.includes("salon")) return "💇";
     if (value.includes("repair")) return "🔧";
     if (value.includes("furniture")) return "🪑";
+    if (value.includes("school")) return "🏫";
+    if (value.includes("gym")) return "🏋️";
+    if (value.includes("hospital") || value.includes("clinic")) return "🏥";
+    if (value.includes("bank")) return "🏦";
+    if (value.includes("shop") || value.includes("store")) return "🛍️";
 
     return "🏢";
   };
@@ -382,6 +387,15 @@ export default function HomeScreen() {
       <Text style={styles.businessText}>
         Reviews: {business.reviewCount || 0}
       </Text>
+
+      <TouchableOpacity
+        style={styles.viewPageButton}
+        onPress={() => router.push(`/business/${business._id}`)}
+      >
+        <Ionicons name="open-outline" size={17} color="#fff" />
+
+        <Text style={styles.viewPageButtonText}>Open Business Page</Text>
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.reviewButton}
@@ -880,6 +894,22 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  viewPageButton: {
+    flexDirection: "row",
+    backgroundColor: "#222",
+    padding: 12,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  viewPageButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    marginLeft: 6,
+  },
+
   reviewButton: {
     flexDirection: "row",
     backgroundColor: "#F9B208",
@@ -887,7 +917,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 10,
   },
 
   reviewButtonText: {
