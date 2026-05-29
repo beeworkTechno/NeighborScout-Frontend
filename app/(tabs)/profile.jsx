@@ -8,13 +8,17 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Image,
+  Platform,
 } from 'react-native';
 
 import { useFocusEffect, useRouter } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 
 import api from '../../src/services/api';
 import colors from '../../src/styles/colors';
 import { clearToken, getToken } from '../../utils/tokenUtils';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -23,6 +27,7 @@ export default function ProfileScreen() {
   const [myBusinesses, setMyBusinesses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const isBusinessUser = user?.role === 'business';
 
@@ -78,6 +83,73 @@ export default function ProfileScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchProfile();
+  };
+
+  const createImageFile = async (image) => {
+    const fileName = image.fileName || `profile-photo-${Date.now()}.jpg`;
+    const mimeType = image.mimeType || 'image/jpeg';
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+
+      return new File([blob], fileName, {
+        type: blob.type || mimeType,
+      });
+    }
+
+    return {
+      uri: image.uri,
+      name: fileName,
+      type: mimeType,
+    };
+  };
+
+  const pickAndUploadProfilePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo access.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      setPhotoUploading(true);
+
+      const image = result.assets[0];
+      const imageFile = await createImageFile(image);
+
+      const formData = new FormData();
+      formData.append('profilePhoto', imageFile);
+
+      const response = await api.put('/auth/profile-photo', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      setUser(response.data.user);
+
+      Alert.alert('Success', 'Profile photo updated.');
+    } catch (error) {
+      console.log('Upload Profile Photo Error:', error?.response?.data || error);
+
+      Alert.alert(
+        'Upload Error',
+        error?.response?.data?.message || 'Could not upload profile photo.'
+      );
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -160,11 +232,31 @@ export default function ProfileScreen() {
       }
     >
       <View style={styles.headerCard}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-          </Text>
-        </View>
+        <TouchableOpacity
+          onPress={pickAndUploadProfilePhoto}
+          disabled={photoUploading}
+          activeOpacity={0.8}
+          style={styles.avatarWrapper}
+        >
+          {user?.avatar ? (
+            <Image
+              source={{ uri: getImageUrl(user.avatar) }}
+              style={styles.avatarImage}
+            />
+          ) : (
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarText}>
+                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+              </Text>
+            </View>
+          )}
+
+          {photoUploading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Text style={styles.changePhotoText}>Change Photo</Text>
+          )}
+        </TouchableOpacity>
 
         <Text style={styles.name}>{user?.name || 'User'}</Text>
         <Text style={styles.email}>{user?.email || 'No email available'}</Text>
@@ -232,6 +324,13 @@ export default function ProfileScreen() {
                   style={styles.businessItem}
                   onPress={() => router.push(`/business/${business._id}`)}
                 >
+                  {business.profilePhoto ? (
+                    <Image
+                      source={{ uri: getImageUrl(business.profilePhoto) }}
+                      style={styles.businessImage}
+                    />
+                  ) : null}
+
                   <Text style={styles.businessName}>{business.name}</Text>
 
                   <Text style={styles.businessCategory}>
@@ -345,6 +444,11 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  avatarWrapper: {
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+
   avatarCircle: {
     width: 82,
     height: 82,
@@ -352,13 +456,28 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
+  },
+
+  avatarImage: {
+    width: 82,
+    height: 82,
+    borderRadius: 41,
+    marginBottom: 8,
+    backgroundColor: colors.bg,
   },
 
   avatarText: {
     color: colors.white,
     fontSize: 34,
     fontWeight: 'bold',
+  },
+
+  changePhotoText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 
   name: {
@@ -495,6 +614,14 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     backgroundColor: colors.bg,
+  },
+
+  businessImage: {
+    width: '100%',
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 12,
+    backgroundColor: '#eee',
   },
 
   businessName: {

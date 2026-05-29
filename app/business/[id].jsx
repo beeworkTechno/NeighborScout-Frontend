@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,12 +8,14 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-} from "react-native";
+  Image,
+} from 'react-native';
 
-import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import api from "../../src/services/api";
+import api from '../../src/services/api';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export default function BusinessDetailPage() {
   const router = useRouter();
@@ -39,48 +41,49 @@ export default function BusinessDetailPage() {
       const reviewResponse = await api.get(`/reviews/${id}`);
       setReviews(reviewResponse.data || []);
     } catch (error) {
-      console.log("Business Detail Error:", error?.response?.data || error);
+      console.log('Business Detail Error:', error?.response?.data || error);
 
       Alert.alert(
-        "Error",
-        error?.response?.data?.message ||
-          "Could not load business details."
+        'Error',
+        error?.response?.data?.message || 'Could not load business details.'
       );
     } finally {
       setLoading(false);
     }
   };
 
-  const getCategoryIcon = (category = "") => {
+  const getCategoryIcon = (category = '') => {
     const value = category.toLowerCase();
 
-    if (value.includes("restaurant")) return "🍽️";
-    if (value.includes("grocery")) return "🛒";
-    if (value.includes("cafe") || value.includes("coffee")) return "☕";
-    if (value.includes("pharmacy")) return "💊";
-    if (value.includes("hotel")) return "🏨";
-    if (value.includes("salon")) return "💇";
-    if (value.includes("repair")) return "🔧";
-    if (value.includes("furniture")) return "🪑";
-    if (value.includes("school")) return "🏫";
-    if (value.includes("gym")) return "🏋️";
-    if (value.includes("hospital") || value.includes("clinic")) return "🏥";
-    if (value.includes("bank")) return "🏦";
-    if (value.includes("shop") || value.includes("store")) return "🛍️";
+    if (value.includes('restaurant')) return '🍽️';
+    if (value.includes('grocery')) return '🛒';
+    if (value.includes('cafe') || value.includes('coffee')) return '☕';
+    if (value.includes('pharmacy')) return '💊';
+    if (value.includes('hotel')) return '🏨';
+    if (value.includes('salon')) return '💇';
+    if (value.includes('repair')) return '🔧';
+    if (value.includes('furniture')) return '🪑';
+    if (value.includes('school')) return '🏫';
+    if (value.includes('gym')) return '🏋️';
+    if (value.includes('hospital') || value.includes('clinic')) return '🏥';
+    if (value.includes('bank')) return '🏦';
+    if (value.includes('shop') || value.includes('store')) return '🛍️';
 
-    return "🏢";
+    return '🏢';
   };
 
   const getRatingText = () => {
     if (!business || (business.reviewCount || 0) === 0) {
-      return "No reviews yet";
+      return 'No reviews yet';
     }
 
     return `${business.averageRating || 0} ⭐`;
   };
 
   const getBusinessUrl = () => {
-    if (!id) return "";
+    if (business?.businessPageUrl) return business.businessPageUrl;
+
+    if (!id) return '';
 
     return `http://localhost:8081/business/${id}`;
   };
@@ -123,14 +126,21 @@ export default function BusinessDetailPage() {
         </View>
 
         <View style={styles.heroCard}>
-          <Text style={styles.businessIcon}>
-            {getCategoryIcon(business.category)}
-          </Text>
+          {business.profilePhoto ? (
+            <Image
+              source={{ uri: getImageUrl(business.profilePhoto) }}
+              style={styles.businessHeroImage}
+            />
+          ) : (
+            <Text style={styles.businessIcon}>
+              {getCategoryIcon(business.category)}
+            </Text>
+          )}
 
           <Text style={styles.businessName}>{business.name}</Text>
 
           <Text style={styles.businessCategory}>
-            {business.category || "Business"}
+            {business.category || 'Business'}
           </Text>
 
           <Text style={styles.ratingText}>{getRatingText()}</Text>
@@ -140,7 +150,7 @@ export default function BusinessDetailPage() {
           <Text style={styles.sectionTitle}>About</Text>
 
           <Text style={styles.descriptionText}>
-            {business.description || "No description available."}
+            {business.description || 'No description available.'}
           </Text>
         </View>
 
@@ -150,17 +160,29 @@ export default function BusinessDetailPage() {
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={20} color="#F9B208" />
             <Text style={styles.infoText}>
-              {business.address || "Address not provided"}
+              {business.address || 'Address not provided'}
             </Text>
           </View>
 
           {business?.location?.coordinates?.length === 2 && (
             <Text style={styles.coordinateText}>
-              Longitude: {business.location.coordinates[0]}{"\n"}
+              Longitude: {business.location.coordinates[0]}
+              {'\n'}
               Latitude: {business.location.coordinates[1]}
             </Text>
           )}
         </View>
+
+        {business.phone ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Contact</Text>
+
+            <View style={styles.infoRow}>
+              <Ionicons name="call-outline" size={20} color="#F9B208" />
+              <Text style={styles.infoText}>{business.phone}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Public URL</Text>
@@ -182,14 +204,14 @@ export default function BusinessDetailPage() {
               <View key={review._id} style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewName}>
-                    {review.pseudoName || "Anonymous Neighbor"}
+                    {review.pseudoName || 'Anonymous Neighbor'}
                   </Text>
 
                   <Text style={styles.reviewRating}>{review.rating} ⭐</Text>
                 </View>
 
                 <Text style={styles.reviewComment}>
-                  {review.comment || "No comment provided."}
+                  {review.comment || 'No comment provided.'}
                 </Text>
               </View>
             ))
@@ -203,50 +225,58 @@ export default function BusinessDetailPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
 
   centerContainer: {
     flex: 1,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
     padding: 20,
   },
 
   loadingText: {
     marginTop: 10,
-    color: "#555",
+    color: '#555',
   },
 
   errorText: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
+    fontWeight: 'bold',
+    color: '#222',
     marginBottom: 16,
   },
 
   topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 18,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderBottomColor: '#eee',
   },
 
   topBarTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: "#222",
+    fontWeight: 'bold',
+    color: '#222',
   },
 
   heroCard: {
     margin: 20,
-    padding: 24,
+    padding: 20,
     borderRadius: 18,
-    backgroundColor: "#FFF8E1",
-    alignItems: "center",
+    backgroundColor: '#FFF8E1',
+    alignItems: 'center',
+  },
+
+  businessHeroImage: {
+    width: '100%',
+    height: 220,
+    borderRadius: 16,
+    marginBottom: 16,
+    backgroundColor: '#eee',
   },
 
   businessIcon: {
@@ -256,14 +286,14 @@ const styles = StyleSheet.create({
 
   businessName: {
     fontSize: 26,
-    fontWeight: "bold",
-    color: "#222",
-    textAlign: "center",
+    fontWeight: 'bold',
+    color: '#222',
+    textAlign: 'center',
   },
 
   businessCategory: {
-    color: "#F9B208",
-    fontWeight: "bold",
+    color: '#F9B208',
+    fontWeight: 'bold',
     marginTop: 6,
     fontSize: 16,
   },
@@ -271,8 +301,8 @@ const styles = StyleSheet.create({
   ratingText: {
     marginTop: 10,
     fontSize: 17,
-    fontWeight: "bold",
-    color: "#F9B208",
+    fontWeight: 'bold',
+    color: '#F9B208',
   },
 
   section: {
@@ -282,90 +312,90 @@ const styles = StyleSheet.create({
 
   sectionTitle: {
     fontSize: 19,
-    fontWeight: "bold",
-    color: "#222",
+    fontWeight: 'bold',
+    color: '#222',
     marginBottom: 10,
   },
 
   descriptionText: {
-    color: "#555",
+    color: '#555',
     lineHeight: 22,
     fontSize: 15,
   },
 
   infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 8,
   },
 
   infoText: {
     flex: 1,
-    color: "#555",
+    color: '#555',
     lineHeight: 21,
   },
 
   coordinateText: {
-    color: "gray",
+    color: 'gray',
     marginTop: 10,
     lineHeight: 20,
   },
 
   urlBox: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#eee",
+    borderColor: '#eee',
   },
 
   urlText: {
-    color: "#333",
+    color: '#333',
     fontSize: 14,
   },
 
   reviewCard: {
-    backgroundColor: "#f8f8f8",
+    backgroundColor: '#f8f8f8',
     padding: 14,
     borderRadius: 12,
     marginBottom: 10,
   },
 
   reviewHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 6,
   },
 
   reviewName: {
-    fontWeight: "bold",
-    color: "#222",
+    fontWeight: 'bold',
+    color: '#222',
   },
 
   reviewRating: {
-    color: "#F9B208",
-    fontWeight: "bold",
+    color: '#F9B208',
+    fontWeight: 'bold',
   },
 
   reviewComment: {
-    color: "#555",
+    color: '#555',
     lineHeight: 20,
   },
 
   emptyText: {
-    color: "gray",
+    color: 'gray',
     lineHeight: 20,
   },
 
   backButton: {
-    backgroundColor: "#F9B208",
+    backgroundColor: '#F9B208',
     paddingVertical: 12,
     paddingHorizontal: 22,
     borderRadius: 10,
   },
 
   backButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

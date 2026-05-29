@@ -9,10 +9,12 @@ import {
   ScrollView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 
 import api from '../src/services/api';
 import colors from '../src/styles/colors';
@@ -42,6 +44,7 @@ export default function AddBusinessScreen() {
     longitude: '',
   });
 
+  const [profilePhoto, setProfilePhoto] = useState(null);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -116,6 +119,53 @@ export default function AddBusinessScreen() {
     return true;
   };
 
+  const createImageFile = async (image) => {
+    const fileName = image.fileName || `business-photo-${Date.now()}.jpg`;
+    const mimeType = image.mimeType || 'image/jpeg';
+
+    if (Platform.OS === 'web') {
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+
+      return new File([blob], fileName, {
+        type: blob.type || mimeType,
+      });
+    }
+
+    return {
+      uri: image.uri,
+      name: fileName,
+      type: mimeType,
+    };
+  };
+
+  const pickBusinessPhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        showError('Please allow photo access.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      setProfilePhoto(result.assets[0]);
+      setErrorMessage('');
+      setSuccessMessage('');
+    } catch (error) {
+      console.log('Pick Business Photo Error:', error);
+      showError('Could not select business photo.');
+    }
+  };
+
   const useCurrentLocation = async () => {
     try {
       setLocating(true);
@@ -159,24 +209,26 @@ export default function AddBusinessScreen() {
     try {
       setLoading(true);
 
-      const payload = {
-        name: form.name.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        address: form.address.trim() || 'Address not provided',
-        phone: form.phone.trim(),
-        location: {
-          type: 'Point',
-          coordinates: [
-            Number(form.longitude),
-            Number(form.latitude),
-          ],
+      const formData = new FormData();
+
+      formData.append('name', form.name.trim());
+      formData.append('description', form.description.trim());
+      formData.append('category', form.category);
+      formData.append('address', form.address.trim() || 'Address not provided');
+      formData.append('phone', form.phone.trim());
+      formData.append('latitude', String(Number(form.latitude)));
+      formData.append('longitude', String(Number(form.longitude)));
+
+      if (profilePhoto) {
+        const imageFile = await createImageFile(profilePhoto);
+        formData.append('profilePhoto', imageFile);
+      }
+
+      const response = await api.post('/businesses', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
         },
-      };
-
-      console.log('Sending business payload:', payload);
-
-      const response = await api.post('/businesses', payload);
+      });
 
       console.log('Business created:', response.data);
 
@@ -206,6 +258,21 @@ export default function AddBusinessScreen() {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>Add Your Business</Text>
+
+      <TouchableOpacity
+        style={styles.photoPicker}
+        onPress={pickBusinessPhoto}
+        activeOpacity={0.8}
+      >
+        {profilePhoto ? (
+          <Image source={{ uri: profilePhoto.uri }} style={styles.photoPreview} />
+        ) : (
+          <>
+            <Text style={styles.photoIcon}>📷</Text>
+            <Text style={styles.photoPickerText}>Add Business Photo</Text>
+          </>
+        )}
+      </TouchableOpacity>
 
       <TextInput
         placeholder="Business Name"
@@ -293,19 +360,14 @@ export default function AddBusinessScreen() {
         keyboardType="numeric"
       />
 
-      {errorMessage ? (
-        <Text style={styles.errorBox}>{errorMessage}</Text>
-      ) : null}
+      {errorMessage ? <Text style={styles.errorBox}>{errorMessage}</Text> : null}
 
       {successMessage ? (
         <Text style={styles.successBox}>{successMessage}</Text>
       ) : null}
 
       <TouchableOpacity
-        style={[
-          styles.submitButton,
-          loading && styles.disabledButton,
-        ]}
+        style={[styles.submitButton, loading && styles.disabledButton]}
         onPress={handleAddBusiness}
         disabled={loading}
         activeOpacity={0.8}
@@ -345,6 +407,33 @@ const styles = StyleSheet.create({
     color: colors.text,
     textAlign: 'center',
     marginBottom: 24,
+  },
+
+  photoPicker: {
+    borderWidth: 1,
+    borderColor: colors.muted,
+    borderRadius: 14,
+    backgroundColor: colors.white,
+    minHeight: 170,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+
+  photoPreview: {
+    width: '100%',
+    height: 190,
+  },
+
+  photoIcon: {
+    fontSize: 34,
+    marginBottom: 8,
+  },
+
+  photoPickerText: {
+    color: colors.primary,
+    fontWeight: 'bold',
   },
 
   input: {
