@@ -78,28 +78,68 @@ const getBusinessCoordinates = (business) => {
   return null;
 };
 
-const getPopularBusinesses = (businesses) => {
-  const reviewedBusinesses = businesses
-    .filter((business) => (business.reviewCount || 0) > 0)
-    .sort((a, b) => {
-      if ((b.reviewCount || 0) !== (a.reviewCount || 0)) {
-        return (b.reviewCount || 0) - (a.reviewCount || 0);
-      }
+const getDistanceInMeters = (coord1, coord2) => {
+  const earthRadius = 6371000;
 
-      return (b.averageRating || 0) - (a.averageRating || 0);
+  const lat1 = (coord1.latitude * Math.PI) / 180;
+  const lat2 = (coord2.latitude * Math.PI) / 180;
+  const deltaLat = ((coord2.latitude - coord1.latitude) * Math.PI) / 180;
+  const deltaLon = ((coord2.longitude - coord1.longitude) * Math.PI) / 180;
+
+  const a =
+    Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(deltaLon / 2) *
+      Math.sin(deltaLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return earthRadius * c;
+};
+
+const getMostPopulatedBusinessCluster = (businesses) => {
+  const businessCoordinates = businesses
+    .map((business) => {
+      const coordinate = getBusinessCoordinates(business);
+
+      if (!coordinate) return null;
+
+      return {
+        business,
+        coordinate,
+      };
     })
-    .slice(0, 5);
+    .filter(Boolean);
 
-  return reviewedBusinesses.length > 0
-    ? reviewedBusinesses
-    : businesses.slice(0, 5);
+  if (businessCoordinates.length === 0) {
+    return [];
+  }
+
+  const radiusMeters = 2000;
+  let bestCluster = [];
+
+  businessCoordinates.forEach((item) => {
+    const nearbyBusinesses = businessCoordinates.filter((otherItem) => {
+      return (
+        getDistanceInMeters(item.coordinate, otherItem.coordinate) <=
+        radiusMeters
+      );
+    });
+
+    if (nearbyBusinesses.length > bestCluster.length) {
+      bestCluster = nearbyBusinesses;
+    }
+  });
+
+  return bestCluster;
 };
 
 const getRegionForBusinesses = (businesses, fallbackLocation) => {
-  const popularBusinesses = getPopularBusinesses(businesses);
+  const mostPopulatedCluster = getMostPopulatedBusinessCluster(businesses);
 
-  const coordinates = popularBusinesses
-    .map((business) => getBusinessCoordinates(business))
+  const coordinates = mostPopulatedCluster
+    .map((item) => item.coordinate)
     .filter(Boolean);
 
   if (coordinates.length === 0) {
@@ -122,8 +162,8 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
   const centerLatitude = (minLatitude + maxLatitude) / 2;
   const centerLongitude = (minLongitude + maxLongitude) / 2;
 
-  const latitudeDelta = Math.max((maxLatitude - minLatitude) * 1.6, 0.03);
-  const longitudeDelta = Math.max((maxLongitude - minLongitude) * 1.6, 0.03);
+  const latitudeDelta = Math.max((maxLatitude - minLatitude) * 2.2, 0.015);
+  const longitudeDelta = Math.max((maxLongitude - minLongitude) * 2.2, 0.015);
 
   return {
     latitude: centerLatitude,
