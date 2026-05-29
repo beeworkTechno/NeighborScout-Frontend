@@ -93,7 +93,10 @@ export default function BusinessMap({ selectedBusinessFromList }) {
         setSelectedBusiness(event.data.business);
       }
 
-      if (event?.data?.type === "MAP_CLICK") {
+      if (
+        event?.data?.type === "MAP_CLICK" ||
+        event?.data?.type === "CURRENT_LOCATION_CLICK"
+      ) {
         setSelectedBusiness(null);
       }
     };
@@ -408,6 +411,13 @@ export default function BusinessMap({ selectedBusinessFromList }) {
             updateBusinessLabels();
 
             function goToCurrentLocation() {
+              window.parent.postMessage(
+                {
+                  type: 'CURRENT_LOCATION_CLICK'
+                },
+                '*'
+              );
+
               if (!navigator.geolocation) {
                 alert('Geolocation is not supported by this browser.');
                 return;
