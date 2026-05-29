@@ -143,6 +143,9 @@ export default function BusinessMap({ selectedBusinessFromList }) {
   const [loading, setLoading] = useState(true);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  // This controls when business names appear beside icons.
+  const [showBusinessLabels, setShowBusinessLabels] = useState(false);
+
   useEffect(() => {
     loadMapData();
   }, []);
@@ -160,6 +163,8 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       ...selectedBusinessFromList,
       icon,
     });
+
+    setShowBusinessLabels(true);
 
     mapRef.current.animateToRegion(
       {
@@ -202,6 +207,8 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       setUserLocation(currentLocation);
 
       if (shouldMoveToLocation && mapRef.current) {
+        setShowBusinessLabels(true);
+
         mapRef.current.animateToRegion(
           {
             latitude: currentLocation.latitude,
@@ -248,6 +255,12 @@ export default function BusinessMap({ selectedBusinessFromList }) {
     router.push(`/business/${business._id}`);
   };
 
+  const handleRegionChangeComplete = (region) => {
+    // Smaller latitudeDelta means user is zoomed in.
+    // You can change 0.025 to 0.03 if you want labels to appear earlier.
+    setShowBusinessLabels(region.latitudeDelta <= 0.025);
+  };
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -265,6 +278,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
         initialRegion={getRegionForBusinesses(businesses, userLocation)}
         showsUserLocation
         onPress={closeBusinessCard}
+        onRegionChangeComplete={handleRegionChangeComplete}
       >
         <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
@@ -288,7 +302,9 @@ export default function BusinessMap({ selectedBusinessFromList }) {
             <Marker
               key={business._id}
               coordinate={coordinate}
-              tracksViewChanges={false}
+              tracksViewChanges={showBusinessLabels}
+              title={business.name || "Business"}
+              description={business.category || "Local business"}
               onPress={(event) => {
                 event.stopPropagation();
 
@@ -298,25 +314,40 @@ export default function BusinessMap({ selectedBusinessFromList }) {
                 });
               }}
             >
-              <View
-                style={[
-                  styles.iconMarker,
-                  {
-                    borderColor: markerColor,
-                  },
-                ]}
-              >
-                <Text style={styles.iconText}>{icon}</Text>
-              </View>
+              <View style={styles.markerWrapper}>
+                <View>
+                  <View
+                    style={[
+                      styles.iconMarker,
+                      {
+                        borderColor: markerColor,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.iconText}>{icon}</Text>
+                  </View>
 
-              <View
-                style={[
-                  styles.markerPointer,
-                  {
-                    borderTopColor: markerColor,
-                  },
-                ]}
-              />
+                  <View
+                    style={[
+                      styles.markerPointer,
+                      {
+                        borderTopColor: markerColor,
+                      },
+                    ]}
+                  />
+                </View>
+
+                {showBusinessLabels && (
+                  <View style={styles.businessNameLabel}>
+                    <Text
+                      style={styles.businessNameLabelText}
+                      numberOfLines={1}
+                    >
+                      {business.name || "Business"}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </Marker>
           );
         })}
@@ -433,6 +464,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
+  markerWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
   iconMarker: {
     backgroundColor: "white",
     width: 44,
@@ -465,6 +501,29 @@ const styles = StyleSheet.create({
 
   iconText: {
     fontSize: 23,
+  },
+
+  businessNameLabel: {
+    backgroundColor: "#fff",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    marginLeft: 6,
+    maxWidth: 170,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.22,
+    shadowRadius: 4,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+
+  businessNameLabelText: {
+    color: "#222",
+    fontWeight: "bold",
+    fontSize: 13,
   },
 
   businessCard: {
