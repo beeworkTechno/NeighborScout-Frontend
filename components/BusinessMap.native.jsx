@@ -11,6 +11,7 @@ import {
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 
 import * as Location from 'expo-location';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../src/services/api';
 
 console.log('🔥 Native Map Loaded');
@@ -131,88 +132,70 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
   };
 };
 
-const getRegionForSelectedBusiness = (business) => {
-  const coordinate = getBusinessCoordinates(business);
-
-  if (!coordinate) return null;
-
-  return {
-    latitude: coordinate.latitude,
-    longitude: coordinate.longitude,
-    latitudeDelta: 0.01,
-    longitudeDelta: 0.01,
-  };
-};
-
-export default function BusinessMap({ selectedBusinessFromList = null }) {
+export default function BusinessMap() {
   const mapRef = useRef(null);
 
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [locationLoading, setLocationLoading] = useState(false);
 
   useEffect(() => {
     loadMapData();
   }, []);
 
-  useEffect(() => {
-    if (!selectedBusinessFromList) return;
-
-    const coordinate = getBusinessCoordinates(selectedBusinessFromList);
-
-    if (!coordinate) return;
-
-    const selectedWithIcon = {
-      ...selectedBusinessFromList,
-      icon: getCategoryIcon(selectedBusinessFromList.category),
-    };
-
-    setSelectedBusiness(selectedWithIcon);
-
-    setTimeout(() => {
-      mapRef.current?.animateToRegion(
-        {
-          latitude: coordinate.latitude,
-          longitude: coordinate.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        },
-        700
-      );
-    }, 300);
-  }, [selectedBusinessFromList, businesses]);
-
   const loadMapData = async () => {
     try {
-      await getUserLocation();
+      await getUserLocation(false);
       await fetchBusinesses();
     } finally {
       setLoading(false);
     }
   };
 
-  const getUserLocation = async () => {
+  const getUserLocation = async (shouldMoveToLocation = true) => {
     try {
-      const { status } =
-        await Location.requestForegroundPermissionsAsync();
+      setLocationLoading(true);
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
 
       if (status !== 'granted') {
         Alert.alert(
           'Permission denied',
           'Location permission was denied.'
         );
-        return;
+        return null;
       }
 
       const loc = await Location.getCurrentPositionAsync({});
 
-      setUserLocation({
+      const currentLocation = {
         latitude: loc.coords.latitude,
         longitude: loc.coords.longitude,
-      });
+      };
+
+      setUserLocation(currentLocation);
+
+      if (shouldMoveToLocation && mapRef.current) {
+        mapRef.current.animateToRegion(
+          {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          },
+          700
+        );
+      }
+
+      return currentLocation;
     } catch (error) {
       console.log('Location Error:', error);
+      Alert.alert('Location Error', 'Could not get your current location.');
+      return null;
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -235,11 +218,6 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
     setSelectedBusiness(null);
   };
 
-  const initialRegion =
-    selectedBusinessFromList && getRegionForSelectedBusiness(selectedBusinessFromList)
-      ? getRegionForSelectedBusiness(selectedBusinessFromList)
-      : getRegionForBusinesses(businesses, userLocation);
-
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -254,7 +232,7 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={initialRegion}
+        initialRegion={getRegionForBusinesses(businesses, userLocation)}
         showsUserLocation
         onPress={closeBusinessCard}
       >
@@ -263,7 +241,7 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
         {userLocation && (
           <Marker
             coordinate={userLocation}
-            title="You"
+            title="You are here"
             pinColor="blue"
           />
         )}
@@ -283,21 +261,10 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
               tracksViewChanges={false}
               onPress={(event) => {
                 event.stopPropagation();
-
                 setSelectedBusiness({
                   ...business,
                   icon,
                 });
-
-                mapRef.current?.animateToRegion(
-                  {
-                    latitude: coordinate.latitude,
-                    longitude: coordinate.longitude,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                  },
-                  500
-                );
               }}
             >
               <View
@@ -324,6 +291,21 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
         })}
       </MapView>
 
+      <TouchableOpacity
+        style={styles.currentLocationButton}
+        onPress={() => getUserLocation(true)}
+        disabled={locationLoading}
+      >
+        {locationLoading ? (
+          <ActivityIndicator color="#222" />
+        ) : (
+          <>
+            <Ionicons name="locate" size={20} color="#222" />
+            <Text style={styles.currentLocationText}>Current Location</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
       {selectedBusiness && (
         <View style={styles.businessCard}>
           <TouchableOpacity
@@ -334,8 +316,7 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
           </TouchableOpacity>
 
           <Text style={styles.businessName}>
-            {selectedBusiness.icon || getCategoryIcon(selectedBusiness.category)}{' '}
-            {selectedBusiness.name}
+            {selectedBusiness.icon} {selectedBusiness.name}
           </Text>
 
           <Text style={styles.businessCategory}>
@@ -352,7 +333,7 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
 
           <Text style={styles.businessText}>
             {(selectedBusiness.reviewCount || 0) > 0
-              ? `⭐ ${selectedBusiness.averageRating || selectedBusiness.rating || 0} rating`
+              ? `⭐ ${selectedBusiness.averageRating || 0} rating`
               : 'No reviews yet'}
           </Text>
 
@@ -382,6 +363,32 @@ const styles = StyleSheet.create({
 
   loaderText: {
     marginTop: 8,
+  },
+
+  currentLocationButton: {
+    position: 'absolute',
+    top: 18,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 30,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 5,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+
+  currentLocationText: {
+    marginLeft: 6,
+    color: '#222',
+    fontWeight: 'bold',
   },
 
   iconMarker: {

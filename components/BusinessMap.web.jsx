@@ -70,7 +70,7 @@ const getPopularBusinesses = (businesses) => {
     : businesses.slice(0, 5);
 };
 
-export default function BusinessMap({ selectedBusinessFromList = null }) {
+export default function BusinessMap() {
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,28 +81,6 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
   useEffect(() => {
     fetchBusinesses();
   }, []);
-
-  useEffect(() => {
-    if (!selectedBusinessFromList) return;
-
-    const coordinate = getBusinessCoordinates(selectedBusinessFromList);
-
-    if (!coordinate) return;
-
-    setSelectedBusiness({
-      _id: selectedBusinessFromList._id,
-      name: selectedBusinessFromList.name || 'Business',
-      description:
-        selectedBusinessFromList.description || 'No description available',
-      category: selectedBusinessFromList.category || 'Business',
-      address: selectedBusinessFromList.address || 'Address not provided',
-      rating: selectedBusinessFromList.averageRating || 0,
-      reviewCount: selectedBusinessFromList.reviewCount || 0,
-      icon: getCategoryIcon(selectedBusinessFromList.category),
-      latitude: coordinate.latitude,
-      longitude: coordinate.longitude,
-    });
-  }, [selectedBusinessFromList]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -142,13 +120,10 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
   const mapHtml = useMemo(() => {
     const popularBusinesses = getPopularBusinesses(businesses);
 
-    const selectedCoordinate = getBusinessCoordinates(selectedBusinessFromList);
-
     const firstBusinessCoordinates =
-      selectedCoordinate ||
-      (popularBusinesses.length > 0
+      popularBusinesses.length > 0
         ? getBusinessCoordinates(popularBusinesses[0])
-        : null);
+        : null;
 
     const centerLatitude =
       firstBusinessCoordinates?.latitude || defaultLatitude;
@@ -176,12 +151,6 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
         };
       })
       .filter(Boolean);
-
-    const selectedMarkerData = selectedBusinessFromList
-      ? markerData.find(
-          (business) => business._id === selectedBusinessFromList._id
-        )
-      : null;
 
     const popularMarkerData = markerData
       .filter((business) => business.reviewCount > 0)
@@ -240,9 +209,33 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
               cursor: pointer;
             }
 
-            .selected-marker {
-              border: 4px solid #1976D2;
-              transform: scale(1.1);
+            .location-button {
+              position: absolute;
+              top: 16px;
+              right: 16px;
+              z-index: 9999;
+              background: white;
+              color: #222;
+              border: none;
+              padding: 11px 14px;
+              border-radius: 30px;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+              box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+            }
+
+            .location-button:hover {
+              background: #f5f5f5;
+            }
+
+            .user-location-marker {
+              width: 20px;
+              height: 20px;
+              border-radius: 50%;
+              background: #1976D2;
+              border: 4px solid white;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
             }
           </style>
         </head>
@@ -250,14 +243,19 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
         <body>
           <div id="map"></div>
 
+          <button class="location-button" onclick="goToCurrentLocation()">
+            📍 Current Location
+          </button>
+
           <script>
             const businesses = ${JSON.stringify(markerData)};
             const businessesToFit = ${JSON.stringify(businessesToFit)};
-            const selectedBusiness = ${JSON.stringify(selectedMarkerData)};
+
+            let userLocationMarker = null;
 
             const map = L.map('map').setView(
               [${centerLatitude}, ${centerLongitude}],
-              selectedBusiness ? 16 : 13
+              13
             );
 
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -275,20 +273,8 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
             });
 
             businesses.forEach((business) => {
-              const isSelected =
-                selectedBusiness && selectedBusiness._id === business._id;
-
-              const markerClass = isSelected
-                ? 'business-marker selected-marker'
-                : 'business-marker';
-
               const icon = L.divIcon({
-                html:
-                  '<div class="' +
-                  markerClass +
-                  '">' +
-                  business.icon +
-                  '</div>',
+                html: '<div class="business-marker">' + business.icon + '</div>',
                 className: '',
                 iconSize: [44, 44],
                 iconAnchor: [22, 22],
@@ -314,20 +300,7 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
               });
             });
 
-            if (selectedBusiness) {
-              map.setView(
-                [selectedBusiness.latitude, selectedBusiness.longitude],
-                16
-              );
-
-              window.parent.postMessage(
-                {
-                  type: 'BUSINESS_MARKER_CLICK',
-                  business: selectedBusiness,
-                },
-                '*'
-              );
-            } else if (businessesToFit.length > 0) {
+            if (businessesToFit.length > 0) {
               const group = L.featureGroup(
                 businessesToFit.map((business) =>
                   L.marker([business.latitude, business.longitude])
@@ -338,11 +311,45 @@ export default function BusinessMap({ selectedBusinessFromList = null }) {
                 maxZoom: 15,
               });
             }
+
+            function goToCurrentLocation() {
+              if (!navigator.geolocation) {
+                alert('Geolocation is not supported by this browser.');
+                return;
+              }
+
+              navigator.geolocation.getCurrentPosition(
+                function (position) {
+                  const latitude = position.coords.latitude;
+                  const longitude = position.coords.longitude;
+
+                  const userIcon = L.divIcon({
+                    html: '<div class="user-location-marker"></div>',
+                    className: '',
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14],
+                  });
+
+                  if (userLocationMarker) {
+                    userLocationMarker.setLatLng([latitude, longitude]);
+                  } else {
+                    userLocationMarker = L.marker([latitude, longitude], {
+                      icon: userIcon,
+                    }).addTo(map);
+                  }
+
+                  map.setView([latitude, longitude], 16);
+                },
+                function () {
+                  alert('Could not get your current location.');
+                }
+              );
+            }
           </script>
         </body>
       </html>
     `;
-  }, [businesses, selectedBusinessFromList]);
+  }, [businesses]);
 
   if (loading) {
     return (
