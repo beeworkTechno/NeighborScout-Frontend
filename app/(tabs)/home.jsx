@@ -390,16 +390,14 @@ export default function HomeScreen() {
     });
   };
 
-  const BusinessCard = ({ business }) => (
+  const renderBusinessCard = (business) => (
     <View style={styles.businessCard}>
       <View style={styles.businessHeader}>
         <Text style={styles.businessName}>
           {getCategoryIcon(business.category)} {business.name}
         </Text>
 
-        <Text style={styles.ratingText}>
-          {getBusinessRatingText(business)}
-        </Text>
+        <Text style={styles.ratingText}>{getBusinessRatingText(business)}</Text>
       </View>
 
       <Text style={styles.businessCategory}>
@@ -448,11 +446,34 @@ export default function HomeScreen() {
     </View>
   );
 
-  const DashboardView = () => {
+  const renderSearchBar = (placeholder = "Search businesses by name, category, or address...") => (
+    <View style={styles.searchBar}>
+      <Ionicons name="search-outline" size={20} color="#999" />
+
+      <TextInput
+        style={styles.searchInput}
+        placeholder={placeholder}
+        placeholderTextColor="#999"
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
+      />
+
+      {searchQuery.length > 0 && (
+        <TouchableOpacity onPress={() => setSearchQuery("")}>
+          <Ionicons name="close-circle" size={20} color="#999" />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderPersonalDashboard = () => {
     const filteredBusinesses = getFilteredBusinesses(businesses);
 
     return (
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Hello, {userName}!</Text>
@@ -466,24 +487,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color="#999" />
-
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search businesses by name, category, or address..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-          />
-
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
+        {renderSearchBar("Search businesses by name, category, or address...")}
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -505,8 +509,9 @@ export default function HomeScreen() {
             <FlatList
               data={filteredBusinesses}
               keyExtractor={(item) => item._id}
-              renderItem={({ item }) => <BusinessCard business={item} />}
+              renderItem={({ item }) => renderBusinessCard(item)}
               scrollEnabled={false}
+              keyboardShouldPersistTaps="handled"
             />
           )}
         </View>
@@ -514,7 +519,7 @@ export default function HomeScreen() {
     );
   };
 
-  const BusinessDashboard = () => {
+  const renderBusinessDashboard = () => {
     const filteredMyBusinesses = getFilteredBusinesses(myBusinesses);
 
     const totalReviews = myBusinesses.reduce((total, business) => {
@@ -535,7 +540,7 @@ export default function HomeScreen() {
           ).toFixed(1);
 
     return (
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <View>
             <Text style={styles.welcomeText}>Hello, {userName}!</Text>
@@ -574,23 +579,8 @@ export default function HomeScreen() {
             <Text style={styles.actionText}>Add Business</Text>
           </TouchableOpacity>
 
-          <View style={styles.searchBarBusiness}>
-            <Ionicons name="search-outline" size={20} color="#999" />
-
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search my businesses..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              autoCapitalize="none"
-            />
-
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color="#999" />
-              </TouchableOpacity>
-            )}
+          <View style={{ marginTop: 16 }}>
+            {renderSearchBar("Search my businesses...")}
           </View>
 
           <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
@@ -607,7 +597,7 @@ export default function HomeScreen() {
             </Text>
           ) : (
             filteredMyBusinesses.map((business) => (
-              <BusinessCard key={business._id} business={business} />
+              <View key={business._id}>{renderBusinessCard(business)}</View>
             ))
           )}
 
@@ -822,10 +812,10 @@ export default function HomeScreen() {
 
   const renderDashboard = () => {
     if (isBusinessUser) {
-      return <BusinessDashboard />;
+      return renderBusinessDashboard();
     }
 
-    return <DashboardView />;
+    return renderPersonalDashboard();
   };
 
   return (
@@ -916,15 +906,6 @@ const styles = StyleSheet.create({
     padding: 12,
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 10,
-    backgroundColor: "#f5f5f5",
-    alignItems: "center",
-  },
-
-  searchBarBusiness: {
-    flexDirection: "row",
-    padding: 12,
-    marginTop: 16,
     borderRadius: 10,
     backgroundColor: "#f5f5f5",
     alignItems: "center",
