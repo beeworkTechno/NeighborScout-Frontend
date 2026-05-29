@@ -70,7 +70,7 @@ const getPopularBusinesses = (businesses) => {
     : businesses.slice(0, 5);
 };
 
-export default function BusinessMap() {
+export default function BusinessMap({ selectedBusinessFromList = null }) {
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -81,6 +81,28 @@ export default function BusinessMap() {
   useEffect(() => {
     fetchBusinesses();
   }, []);
+
+  useEffect(() => {
+    if (!selectedBusinessFromList) return;
+
+    const coordinate = getBusinessCoordinates(selectedBusinessFromList);
+
+    if (!coordinate) return;
+
+    setSelectedBusiness({
+      _id: selectedBusinessFromList._id,
+      name: selectedBusinessFromList.name || 'Business',
+      description:
+        selectedBusinessFromList.description || 'No description available',
+      category: selectedBusinessFromList.category || 'Business',
+      address: selectedBusinessFromList.address || 'Address not provided',
+      rating: selectedBusinessFromList.averageRating || 0,
+      reviewCount: selectedBusinessFromList.reviewCount || 0,
+      icon: getCategoryIcon(selectedBusinessFromList.category),
+      latitude: coordinate.latitude,
+      longitude: coordinate.longitude,
+    });
+  }, [selectedBusinessFromList]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -120,10 +142,13 @@ export default function BusinessMap() {
   const mapHtml = useMemo(() => {
     const popularBusinesses = getPopularBusinesses(businesses);
 
+    const selectedCoordinate = getBusinessCoordinates(selectedBusinessFromList);
+
     const firstBusinessCoordinates =
-      popularBusinesses.length > 0
+      selectedCoordinate ||
+      (popularBusinesses.length > 0
         ? getBusinessCoordinates(popularBusinesses[0])
-        : null;
+        : null);
 
     const centerLatitude =
       firstBusinessCoordinates?.latitude || defaultLatitude;
@@ -151,6 +176,12 @@ export default function BusinessMap() {
         };
       })
       .filter(Boolean);
+
+    const selectedMarkerData = selectedBusinessFromList
+      ? markerData.find(
+          (business) => business._id === selectedBusinessFromList._id
+        )
+      : null;
 
     const popularMarkerData = markerData
       .filter((business) => business.reviewCount > 0)
@@ -208,6 +239,11 @@ export default function BusinessMap() {
               box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
               cursor: pointer;
             }
+
+            .selected-marker {
+              border: 4px solid #1976D2;
+              transform: scale(1.1);
+            }
           </style>
         </head>
 
@@ -217,10 +253,11 @@ export default function BusinessMap() {
           <script>
             const businesses = ${JSON.stringify(markerData)};
             const businessesToFit = ${JSON.stringify(businessesToFit)};
+            const selectedBusiness = ${JSON.stringify(selectedMarkerData)};
 
             const map = L.map('map').setView(
               [${centerLatitude}, ${centerLongitude}],
-              13
+              selectedBusiness ? 16 : 13
             );
 
             L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -238,8 +275,20 @@ export default function BusinessMap() {
             });
 
             businesses.forEach((business) => {
+              const isSelected =
+                selectedBusiness && selectedBusiness._id === business._id;
+
+              const markerClass = isSelected
+                ? 'business-marker selected-marker'
+                : 'business-marker';
+
               const icon = L.divIcon({
-                html: '<div class="business-marker">' + business.icon + '</div>',
+                html:
+                  '<div class="' +
+                  markerClass +
+                  '">' +
+                  business.icon +
+                  '</div>',
                 className: '',
                 iconSize: [44, 44],
                 iconAnchor: [22, 22],
@@ -265,7 +314,20 @@ export default function BusinessMap() {
               });
             });
 
-            if (businessesToFit.length > 0) {
+            if (selectedBusiness) {
+              map.setView(
+                [selectedBusiness.latitude, selectedBusiness.longitude],
+                16
+              );
+
+              window.parent.postMessage(
+                {
+                  type: 'BUSINESS_MARKER_CLICK',
+                  business: selectedBusiness,
+                },
+                '*'
+              );
+            } else if (businessesToFit.length > 0) {
               const group = L.featureGroup(
                 businessesToFit.map((business) =>
                   L.marker([business.latitude, business.longitude])
@@ -280,7 +342,7 @@ export default function BusinessMap() {
         </body>
       </html>
     `;
-  }, [businesses]);
+  }, [businesses, selectedBusinessFromList]);
 
   if (loading) {
     return (

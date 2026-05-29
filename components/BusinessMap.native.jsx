@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -131,7 +131,22 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
   };
 };
 
-export default function BusinessMap() {
+const getRegionForSelectedBusiness = (business) => {
+  const coordinate = getBusinessCoordinates(business);
+
+  if (!coordinate) return null;
+
+  return {
+    latitude: coordinate.latitude,
+    longitude: coordinate.longitude,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  };
+};
+
+export default function BusinessMap({ selectedBusinessFromList = null }) {
+  const mapRef = useRef(null);
+
   const [businesses, setBusinesses] = useState([]);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
@@ -140,6 +155,33 @@ export default function BusinessMap() {
   useEffect(() => {
     loadMapData();
   }, []);
+
+  useEffect(() => {
+    if (!selectedBusinessFromList) return;
+
+    const coordinate = getBusinessCoordinates(selectedBusinessFromList);
+
+    if (!coordinate) return;
+
+    const selectedWithIcon = {
+      ...selectedBusinessFromList,
+      icon: getCategoryIcon(selectedBusinessFromList.category),
+    };
+
+    setSelectedBusiness(selectedWithIcon);
+
+    setTimeout(() => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: coordinate.latitude,
+          longitude: coordinate.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        },
+        700
+      );
+    }, 300);
+  }, [selectedBusinessFromList, businesses]);
 
   const loadMapData = async () => {
     try {
@@ -193,6 +235,11 @@ export default function BusinessMap() {
     setSelectedBusiness(null);
   };
 
+  const initialRegion =
+    selectedBusinessFromList && getRegionForSelectedBusiness(selectedBusinessFromList)
+      ? getRegionForSelectedBusiness(selectedBusinessFromList)
+      : getRegionForBusinesses(businesses, userLocation);
+
   if (loading) {
     return (
       <View style={styles.loader}>
@@ -205,8 +252,9 @@ export default function BusinessMap() {
   return (
     <View style={styles.container}>
       <MapView
+        ref={mapRef}
         style={styles.map}
-        initialRegion={getRegionForBusinesses(businesses, userLocation)}
+        initialRegion={initialRegion}
         showsUserLocation
         onPress={closeBusinessCard}
       >
@@ -235,10 +283,21 @@ export default function BusinessMap() {
               tracksViewChanges={false}
               onPress={(event) => {
                 event.stopPropagation();
+
                 setSelectedBusiness({
                   ...business,
                   icon,
                 });
+
+                mapRef.current?.animateToRegion(
+                  {
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  },
+                  500
+                );
               }}
             >
               <View
@@ -275,7 +334,8 @@ export default function BusinessMap() {
           </TouchableOpacity>
 
           <Text style={styles.businessName}>
-            {selectedBusiness.icon} {selectedBusiness.name}
+            {selectedBusiness.icon || getCategoryIcon(selectedBusiness.category)}{' '}
+            {selectedBusiness.name}
           </Text>
 
           <Text style={styles.businessCategory}>
@@ -292,7 +352,7 @@ export default function BusinessMap() {
 
           <Text style={styles.businessText}>
             {(selectedBusiness.reviewCount || 0) > 0
-              ? `⭐ ${selectedBusiness.averageRating || 0} rating`
+              ? `⭐ ${selectedBusiness.averageRating || selectedBusiness.rating || 0} rating`
               : 'No reviews yet'}
           </Text>
 
