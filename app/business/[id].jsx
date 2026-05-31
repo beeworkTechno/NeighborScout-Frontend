@@ -14,8 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import api from '../../src/services/api';
-import { getImageUrl } from '../../utils/imageUrl';
+import api, { API_URL } from '../../src/services/api';
 
 export default function BusinessDetailPage() {
   const router = useRouter();
@@ -94,15 +93,12 @@ export default function BusinessDetailPage() {
     return `http://localhost:8081/business/${id}`;
   };
 
-  const getBusinessImageUrl = () => {
-    if (!business?.profilePhoto) {
-      return null;
-    }
-
-    return getImageUrl(business.profilePhoto);
+  const getBusinessPhotoUrl = () => {
+    const backendUrl = API_URL.replace('/api', '');
+    return `${backendUrl}/api/businesses/${id}/photo`;
   };
 
-  const shouldShowBusinessImage = business?.profilePhoto && !imageError;
+  const shouldShowBusinessImage = business?.hasProfilePhoto && !imageError;
 
   if (loading) {
     return (
@@ -145,7 +141,7 @@ export default function BusinessDetailPage() {
         <View style={styles.heroCard}>
           {shouldShowBusinessImage ? (
             <Image
-              source={{ uri: getBusinessImageUrl() }}
+              source={{ uri: getBusinessPhotoUrl() }}
               style={styles.businessHeroImage}
               resizeMode="cover"
               onError={(error) => {
