@@ -18,8 +18,8 @@ import * as ImagePicker from 'expo-image-picker';
 import api from '../../src/services/api';
 import colors from '../../src/styles/colors';
 import { clearToken, getToken } from '../../utils/tokenUtils';
-import { getImageUrl } from '../../utils/imageUrl';
-import ImageCropModal from '../../components/ImageCropModal.web';
+import { getUserProfilePhotoUrl } from '../../utils/userPhoto';
+import ImageCropModal from '../../components/ImageCropModal';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -45,7 +45,6 @@ export default function ProfileScreen() {
       }
 
       const userRes = await api.get('/auth/me');
-
       setUser(userRes.data);
 
       if (userRes.data?.role === 'business') {
@@ -59,10 +58,8 @@ export default function ProfileScreen() {
 
       if (error?.response?.status === 401) {
         Alert.alert('Session expired', 'Please login again.');
-
         await clearToken();
         router.replace('/(auth)/login');
-
         return;
       }
 
@@ -154,11 +151,7 @@ export default function ProfileScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-
-        // Web uses our custom crop modal.
-        // Native uses the system crop editor.
         allowsEditing: Platform.OS !== 'web',
-
         aspect: [1, 1],
         quality: 0.9,
         exif: false,
@@ -184,10 +177,8 @@ export default function ProfileScreen() {
   const handleLogout = async () => {
     try {
       await clearToken();
-
       setUser(null);
       setMyBusinesses([]);
-
       router.replace('/(auth)/login');
     } catch (error) {
       console.log('Logout Error:', error);
@@ -243,6 +234,8 @@ export default function ProfileScreen() {
     return String(business.averageRating || 0);
   };
 
+  const userPhotoUrl = getUserProfilePhotoUrl(user);
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -268,9 +261,9 @@ export default function ProfileScreen() {
             activeOpacity={0.8}
             style={styles.avatarWrapper}
           >
-            {user?.avatar ? (
+            {userPhotoUrl ? (
               <Image
-                source={{ uri: getImageUrl(user.avatar) }}
+                source={{ uri: userPhotoUrl }}
                 style={styles.avatarImage}
                 resizeMode="cover"
               />

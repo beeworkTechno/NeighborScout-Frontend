@@ -12,6 +12,7 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Image,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +26,7 @@ import {
   saveRole,
   clearToken,
 } from "../../utils/tokenUtils";
+import { getUserProfilePhotoUrl } from "../../utils/userPhoto";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -32,6 +34,7 @@ export default function HomeScreen() {
   const [activeTab, setActiveTab] = useState("map");
   const [userName, setUserName] = useState("");
   const [userRole, setUserRole] = useState("personal");
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const [businesses, setBusinesses] = useState([]);
@@ -81,6 +84,7 @@ export default function HomeScreen() {
     try {
       const response = await api.get("/auth/me");
 
+      setUser(response.data);
       setUserName(response.data.name || "Neighbor");
 
       const storedRole = await getRole();
@@ -100,6 +104,7 @@ export default function HomeScreen() {
       }
 
       setUserName("Guest");
+      setUser(null);
     }
   };
 
@@ -390,6 +395,27 @@ export default function HomeScreen() {
     });
   };
 
+  const renderHeaderProfileButton = () => {
+    const userPhotoUrl = getUserProfilePhotoUrl(user);
+
+    return (
+      <TouchableOpacity
+        onPress={() => router.push("/(tabs)/profile")}
+        activeOpacity={0.8}
+      >
+        {userPhotoUrl ? (
+          <Image
+            source={{ uri: userPhotoUrl }}
+            style={styles.headerProfileImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   const renderBusinessCard = (business) => (
     <View style={styles.businessCard}>
       <View style={styles.businessHeader}>
@@ -484,9 +510,7 @@ export default function HomeScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-            <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
-          </TouchableOpacity>
+          {renderHeaderProfileButton()}
         </View>
 
         {renderSearchBar("Search businesses by name, category, or address...")}
@@ -549,9 +573,7 @@ export default function HomeScreen() {
             <Text style={styles.subtitle}>Manage your business listings</Text>
           </View>
 
-          <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
-            <Ionicons name="person-circle-outline" size={44} color="#F9B208" />
-          </TouchableOpacity>
+          {renderHeaderProfileButton()}
         </View>
 
         <View style={styles.section}>
@@ -890,6 +912,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 20,
+    alignItems: "center",
+  },
+
+  headerProfileImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#eee",
+    borderWidth: 2,
+    borderColor: "#F9B208",
   },
 
   welcomeText: {
