@@ -18,6 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 
 import api from '../src/services/api';
 import colors from '../src/styles/colors';
+import ImageCropModal from '../components/ImageCropModal';
 
 const categories = [
   'Restaurant',
@@ -45,6 +46,9 @@ export default function AddBusinessScreen() {
   });
 
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [cropModalVisible, setCropModalVisible] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -120,6 +124,10 @@ export default function AddBusinessScreen() {
   };
 
   const createImageFile = async (image) => {
+    if (image.webFile) {
+      return image.webFile;
+    }
+
     const fileName = image.fileName || `business-photo-${Date.now()}.jpg`;
     const mimeType = image.mimeType || 'image/jpeg';
 
@@ -150,20 +158,41 @@ export default function AddBusinessScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+
+        // Web uses our custom crop modal.
+        // Native uses the system crop editor.
+        allowsEditing: Platform.OS !== 'web',
+
         aspect: [16, 9],
-        quality: 0.8,
+        quality: 0.9,
+        exif: false,
       });
 
       if (result.canceled) return;
 
-      setProfilePhoto(result.assets[0]);
+      const selectedImage = result.assets[0];
+
+      if (Platform.OS === 'web') {
+        setImageToCrop(selectedImage);
+        setCropModalVisible(true);
+        return;
+      }
+
+      setProfilePhoto(selectedImage);
       setErrorMessage('');
       setSuccessMessage('');
     } catch (error) {
       console.log('Pick Business Photo Error:', error);
       showError('Could not select business photo.');
     }
+  };
+
+  const removeSelectedPhoto = () => {
+    setProfilePhoto(null);
+    setImageToCrop(null);
+    setCropModalVisible(false);
+    setErrorMessage('');
+    setSuccessMessage('');
   };
 
   const useCurrentLocation = async () => {
@@ -252,141 +281,196 @@ export default function AddBusinessScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.container}
-      keyboardShouldPersistTaps="handled"
-    >
-      <Text style={styles.title}>Add Your Business</Text>
-
-      <TouchableOpacity
-        style={styles.photoPicker}
-        onPress={pickBusinessPhoto}
-        activeOpacity={0.8}
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
+        <Text style={styles.title}>Add Your Business</Text>
+
+        <TouchableOpacity
+          style={styles.photoPicker}
+          onPress={pickBusinessPhoto}
+          activeOpacity={0.8}
+        >
+          {profilePhoto ? (
+            <Image
+              source={{ uri: profilePhoto.uri }}
+              style={styles.photoPreview}
+              resizeMode="cover"
+            />
+          ) : (
+            <>
+              <Text style={styles.photoIcon}>📷</Text>
+              <Text style={styles.photoPickerText}>Add Business Photo</Text>
+              <Text style={styles.photoHelperText}>
+                Crop and resize before uploading
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
+
         {profilePhoto ? (
-          <Image source={{ uri: profilePhoto.uri }} style={styles.photoPreview} />
-        ) : (
-          <>
-            <Text style={styles.photoIcon}>📷</Text>
-            <Text style={styles.photoPickerText}>Add Business Photo</Text>
-          </>
-        )}
-      </TouchableOpacity>
-
-      <TextInput
-        placeholder="Business Name"
-        value={form.name}
-        onChangeText={(text) => handleChange('name', text)}
-        style={styles.input}
-      />
-
-      <TextInput
-        placeholder="Description"
-        value={form.description}
-        onChangeText={(text) => handleChange('description', text)}
-        style={[styles.input, styles.textArea]}
-        multiline
-      />
-
-      <Text style={styles.label}>Category</Text>
-
-      <View style={styles.categoryContainer}>
-        {categories.map((category) => (
-          <TouchableOpacity
-            key={category}
-            style={[
-              styles.categoryButton,
-              form.category === category && styles.categoryButtonActive,
-            ]}
-            onPress={() => handleChange('category', category)}
-            activeOpacity={0.8}
-          >
-            <Text
-              style={[
-                styles.categoryText,
-                form.category === category && styles.categoryTextActive,
-              ]}
+          <View style={styles.photoActionRow}>
+            <TouchableOpacity
+              style={styles.changePhotoButton}
+              onPress={pickBusinessPhoto}
+              activeOpacity={0.8}
             >
-              {category}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <Text style={styles.changePhotoText}>Change / Crop Again</Text>
+            </TouchableOpacity>
 
-      <TextInput
-        placeholder="Address optional"
-        value={form.address}
-        onChangeText={(text) => handleChange('address', text)}
-        style={styles.input}
+            <TouchableOpacity
+              style={styles.removePhotoButton}
+              onPress={removeSelectedPhoto}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.removePhotoText}>Remove</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        <TextInput
+          placeholder="Business Name"
+          value={form.name}
+          onChangeText={(text) => handleChange('name', text)}
+          style={styles.input}
+        />
+
+        <TextInput
+          placeholder="Description"
+          value={form.description}
+          onChangeText={(text) => handleChange('description', text)}
+          style={[styles.input, styles.textArea]}
+          multiline
+        />
+
+        <Text style={styles.label}>Category</Text>
+
+        <View style={styles.categoryContainer}>
+          {categories.map((category) => (
+            <TouchableOpacity
+              key={category}
+              style={[
+                styles.categoryButton,
+                form.category === category && styles.categoryButtonActive,
+              ]}
+              onPress={() => handleChange('category', category)}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.categoryText,
+                  form.category === category && styles.categoryTextActive,
+                ]}
+              >
+                {category}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <TextInput
+          placeholder="Address optional"
+          value={form.address}
+          onChangeText={(text) => handleChange('address', text)}
+          style={styles.input}
+        />
+
+        <TextInput
+          placeholder="Phone optional"
+          value={form.phone}
+          onChangeText={(text) => handleChange('phone', text)}
+          style={styles.input}
+          keyboardType="phone-pad"
+        />
+
+        <TouchableOpacity
+          style={styles.locationButton}
+          onPress={useCurrentLocation}
+          disabled={locating}
+          activeOpacity={0.8}
+        >
+          {locating ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Use Current Location</Text>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.helperText}>Or enter location manually:</Text>
+
+        <TextInput
+          placeholder="Latitude"
+          value={form.latitude}
+          onChangeText={(text) => handleChange('latitude', text)}
+          style={styles.input}
+          keyboardType="numeric"
+        />
+
+        <TextInput
+          placeholder="Longitude"
+          value={form.longitude}
+          onChangeText={(text) => handleChange('longitude', text)}
+          style={styles.input}
+          keyboardType="numeric"
+        />
+
+        {errorMessage ? (
+          <Text style={styles.errorBox}>{errorMessage}</Text>
+        ) : null}
+
+        {successMessage ? (
+          <Text style={styles.successBox}>{successMessage}</Text>
+        ) : null}
+
+        <TouchableOpacity
+          style={[styles.submitButton, loading && styles.disabledButton]}
+          onPress={handleAddBusiness}
+          disabled={loading}
+          activeOpacity={0.8}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Add Business</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => router.back()}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.cancelText}>Cancel</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      <ImageCropModal
+        visible={cropModalVisible}
+        imageUri={imageToCrop?.uri}
+        aspect={16 / 9}
+        fileName="business-photo.jpg"
+        onCancel={() => {
+          setCropModalVisible(false);
+          setImageToCrop(null);
+        }}
+        onCropDone={(croppedImage) => {
+          setProfilePhoto({
+            uri: croppedImage.uri,
+            webFile: croppedImage.file,
+            fileName: 'business-photo.jpg',
+            mimeType: 'image/jpeg',
+          });
+
+          setCropModalVisible(false);
+          setImageToCrop(null);
+          setErrorMessage('');
+          setSuccessMessage('');
+        }}
       />
-
-      <TextInput
-        placeholder="Phone optional"
-        value={form.phone}
-        onChangeText={(text) => handleChange('phone', text)}
-        style={styles.input}
-        keyboardType="phone-pad"
-      />
-
-      <TouchableOpacity
-        style={styles.locationButton}
-        onPress={useCurrentLocation}
-        disabled={locating}
-        activeOpacity={0.8}
-      >
-        {locating ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Use Current Location</Text>
-        )}
-      </TouchableOpacity>
-
-      <Text style={styles.helperText}>Or enter location manually:</Text>
-
-      <TextInput
-        placeholder="Latitude"
-        value={form.latitude}
-        onChangeText={(text) => handleChange('latitude', text)}
-        style={styles.input}
-        keyboardType="numeric"
-      />
-
-      <TextInput
-        placeholder="Longitude"
-        value={form.longitude}
-        onChangeText={(text) => handleChange('longitude', text)}
-        style={styles.input}
-        keyboardType="numeric"
-      />
-
-      {errorMessage ? <Text style={styles.errorBox}>{errorMessage}</Text> : null}
-
-      {successMessage ? (
-        <Text style={styles.successBox}>{successMessage}</Text>
-      ) : null}
-
-      <TouchableOpacity
-        style={[styles.submitButton, loading && styles.disabledButton]}
-        onPress={handleAddBusiness}
-        disabled={loading}
-        activeOpacity={0.8}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Add Business</Text>
-        )}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.cancelButton}
-        onPress={() => router.back()}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.cancelText}>Cancel</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </>
   );
 }
 
@@ -417,7 +501,7 @@ const styles = StyleSheet.create({
     minHeight: 170,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 10,
     overflow: 'hidden',
   },
 
@@ -434,6 +518,46 @@ const styles = StyleSheet.create({
   photoPickerText: {
     color: colors.primary,
     fontWeight: 'bold',
+  },
+
+  photoHelperText: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 5,
+  },
+
+  photoActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+
+  changePhotoButton: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    padding: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  changePhotoText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  removePhotoButton: {
+    backgroundColor: '#FFECEC',
+    padding: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+
+  removePhotoText: {
+    color: '#D32F2F',
+    fontWeight: 'bold',
+    fontSize: 13,
   },
 
   input: {

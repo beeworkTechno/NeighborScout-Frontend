@@ -19,6 +19,7 @@ import api from '../../src/services/api';
 import colors from '../../src/styles/colors';
 import { clearToken, getToken } from '../../utils/tokenUtils';
 import { getImageUrl } from '../../utils/imageUrl';
+import ImageCropModal from '../../components/ImageCropModal.web';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -28,6 +29,9 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+
+  const [imageToCrop, setImageToCrop] = useState(null);
+  const [cropModalVisible, setCropModalVisible] = useState(false);
 
   const isBusinessUser = user?.role === 'business';
 
@@ -86,6 +90,10 @@ export default function ProfileScreen() {
   };
 
   const createImageFile = async (image) => {
+    if (image.webFile) {
+      return image.webFile;
+    }
+
     const fileName = image.fileName || `profile-photo-${Date.now()}.jpg`;
     const mimeType = image.mimeType || 'image/jpeg';
 
@@ -105,27 +113,10 @@ export default function ProfileScreen() {
     };
   };
 
-  const pickAndUploadProfilePhoto = async () => {
+  const uploadProfilePhoto = async (image) => {
     try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow photo access.');
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (result.canceled) return;
-
       setPhotoUploading(true);
 
-      const image = result.assets[0];
       const imageFile = await createImageFile(image);
 
       const formData = new FormData();
@@ -149,6 +140,44 @@ export default function ProfileScreen() {
       );
     } finally {
       setPhotoUploading(false);
+    }
+  };
+
+  const pickAndUploadProfilePhoto = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow photo access.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+
+        // Web uses our custom crop modal.
+        // Native uses the system crop editor.
+        allowsEditing: Platform.OS !== 'web',
+
+        aspect: [1, 1],
+        quality: 0.9,
+        exif: false,
+      });
+
+      if (result.canceled) return;
+
+      const selectedImage = result.assets[0];
+
+      if (Platform.OS === 'web') {
+        setImageToCrop(selectedImage);
+        setCropModalVisible(true);
+        return;
+      }
+
+      await uploadProfilePhoto(selectedImage);
+    } catch (error) {
+      console.log('Pick Profile Photo Error:', error);
+      Alert.alert('Error', 'Could not select profile photo.');
     }
   };
 
@@ -224,163 +253,181 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.headerCard}>
-        <TouchableOpacity
-          onPress={pickAndUploadProfilePhoto}
-          disabled={photoUploading}
-          activeOpacity={0.8}
-          style={styles.avatarWrapper}
-        >
-          {user?.avatar ? (
-            <Image
-              source={{ uri: getImageUrl(user.avatar) }}
-              style={styles.avatarImage}
-            />
-          ) : (
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-              </Text>
-            </View>
-          )}
+    <>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={styles.headerCard}>
+          <TouchableOpacity
+            onPress={pickAndUploadProfilePhoto}
+            disabled={photoUploading}
+            activeOpacity={0.8}
+            style={styles.avatarWrapper}
+          >
+            {user?.avatar ? (
+              <Image
+                source={{ uri: getImageUrl(user.avatar) }}
+                style={styles.avatarImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={styles.avatarCircle}>
+                <Text style={styles.avatarText}>
+                  {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                </Text>
+              </View>
+            )}
 
-          {photoUploading ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : (
-            <Text style={styles.changePhotoText}>Change Photo</Text>
-          )}
-        </TouchableOpacity>
+            {photoUploading ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Text style={styles.changePhotoText}>Change / Crop Photo</Text>
+            )}
+          </TouchableOpacity>
 
-        <Text style={styles.name}>{user?.name || 'User'}</Text>
-        <Text style={styles.email}>{user?.email || 'No email available'}</Text>
+          <Text style={styles.name}>{user?.name || 'User'}</Text>
+          <Text style={styles.email}>{user?.email || 'No email available'}</Text>
 
-        <View
-          style={[
-            styles.roleBadge,
-            isBusinessUser ? styles.businessBadge : styles.personalBadge,
-          ]}
-        >
-          <Text style={styles.roleBadgeText}>
-            {isBusinessUser ? 'Business Account' : 'Personal Account'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Account Information</Text>
-
-        <InfoRow label="Name" value={user?.name || 'Not available'} />
-        <InfoRow label="Email" value={user?.email || 'Not available'} />
-        <InfoRow
-          label="Account Type"
-          value={isBusinessUser ? 'Business Owner' : 'Personal / Reviewer'}
-        />
-        <InfoRow label="Member Since" value={formatDate(user?.createdAt)} />
-      </View>
-
-      {isBusinessUser ? (
-        <>
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Business Dashboard</Text>
-
-            <View style={styles.statsRow}>
-              <StatBox label="Listings" value={String(myBusinesses.length)} />
-              <StatBox label="Reviews" value={String(getTotalReviews())} />
-              <StatBox label="Avg Rating" value={getAverageRating()} />
-            </View>
-
-            <Text style={styles.noteText}>
-              Businesses with 0 reviews are not counted in the average rating.
+          <View
+            style={[
+              styles.roleBadge,
+              isBusinessUser ? styles.businessBadge : styles.personalBadge,
+            ]}
+          >
+            <Text style={styles.roleBadgeText}>
+              {isBusinessUser ? 'Business Account' : 'Personal Account'}
             </Text>
           </View>
+        </View>
 
-          <View style={styles.card}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>My Businesses</Text>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Account Information</Text>
 
-              <TouchableOpacity
-                style={styles.smallButton}
-                onPress={() => router.push('/add-business')}
-              >
-                <Text style={styles.smallButtonText}>Add New</Text>
-              </TouchableOpacity>
+          <InfoRow label="Name" value={user?.name || 'Not available'} />
+          <InfoRow label="Email" value={user?.email || 'Not available'} />
+          <InfoRow
+            label="Account Type"
+            value={isBusinessUser ? 'Business Owner' : 'Personal / Reviewer'}
+          />
+          <InfoRow label="Member Since" value={formatDate(user?.createdAt)} />
+        </View>
+
+        {isBusinessUser ? (
+          <>
+            <View style={styles.card}>
+              <Text style={styles.sectionTitle}>Business Dashboard</Text>
+
+              <View style={styles.statsRow}>
+                <StatBox label="Listings" value={String(myBusinesses.length)} />
+                <StatBox label="Reviews" value={String(getTotalReviews())} />
+                <StatBox label="Avg Rating" value={getAverageRating()} />
+              </View>
+
+              <Text style={styles.noteText}>
+                Businesses with 0 reviews are not counted in the average rating.
+              </Text>
             </View>
 
-            {myBusinesses.length === 0 ? (
-              <Text style={styles.emptyText}>
-                You have not added any business listings yet.
-              </Text>
-            ) : (
-              myBusinesses.map((business) => (
+            <View style={styles.card}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>My Businesses</Text>
+
                 <TouchableOpacity
-                  key={business._id}
-                  style={styles.businessItem}
-                  onPress={() => router.push(`/business/${business._id}`)}
+                  style={styles.smallButton}
+                  onPress={() => router.push('/add-business')}
                 >
-                  {business.profilePhoto ? (
-                    <Image
-                      source={{ uri: getImageUrl(business.profilePhoto) }}
-                      style={styles.businessImage}
-                    />
-                  ) : null}
-
-                  <Text style={styles.businessName}>{business.name}</Text>
-
-                  <Text style={styles.businessCategory}>
-                    {business.category || 'No category'}
-                  </Text>
-
-                  <Text style={styles.businessAddress}>
-                    {business.address || 'No address'}
-                  </Text>
-
-                  <View style={styles.businessMetaRow}>
-                    <Text style={styles.businessMeta}>
-                      Rating: {getBusinessRatingText(business)}
-                    </Text>
-
-                    <Text style={styles.businessMeta}>
-                      Reviews: {business.reviewCount || 0}
-                    </Text>
-                  </View>
+                  <Text style={styles.smallButtonText}>Add New</Text>
                 </TouchableOpacity>
-              ))
-            )}
+              </View>
+
+              {myBusinesses.length === 0 ? (
+                <Text style={styles.emptyText}>
+                  You have not added any business listings yet.
+                </Text>
+              ) : (
+                myBusinesses.map((business) => (
+                  <TouchableOpacity
+                    key={business._id}
+                    style={styles.businessItem}
+                    onPress={() => router.push(`/business/${business._id}`)}
+                  >
+                    <Text style={styles.businessName}>{business.name}</Text>
+
+                    <Text style={styles.businessCategory}>
+                      {business.category || 'No category'}
+                    </Text>
+
+                    <Text style={styles.businessAddress}>
+                      {business.address || 'No address'}
+                    </Text>
+
+                    <View style={styles.businessMetaRow}>
+                      <Text style={styles.businessMeta}>
+                        Rating: {getBusinessRatingText(business)}
+                      </Text>
+
+                      <Text style={styles.businessMeta}>
+                        Reviews: {business.reviewCount || 0}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          </>
+        ) : (
+          <View style={styles.card}>
+            <Text style={styles.sectionTitle}>Reviewer Profile</Text>
+
+            <Text style={styles.descriptionText}>
+              Use your personal account to discover local businesses, view
+              business details, and share reviews with the community.
+            </Text>
+
+            <View style={styles.featureList}>
+              <FeatureItem text="Browse local businesses" />
+              <FeatureItem text="View ratings and reviews" />
+              <FeatureItem text="Share your experience with a pseudo name" />
+              <FeatureItem text="Support trusted businesses nearby" />
+            </View>
           </View>
-        </>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Reviewer Profile</Text>
+        )}
 
-          <Text style={styles.descriptionText}>
-            Use your personal account to discover local businesses, view
-            business details, and share reviews with the community.
-          </Text>
+        <TouchableOpacity
+          style={styles.logoutButton}
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.logoutText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
-          <View style={styles.featureList}>
-            <FeatureItem text="Browse local businesses" />
-            <FeatureItem text="View ratings and reviews" />
-            <FeatureItem text="Share your experience with a pseudo name" />
-            <FeatureItem text="Support trusted businesses nearby" />
-          </View>
-        </View>
-      )}
+      <ImageCropModal
+        visible={cropModalVisible}
+        imageUri={imageToCrop?.uri}
+        aspect={1}
+        fileName="profile-photo.jpg"
+        onCancel={() => {
+          setCropModalVisible(false);
+          setImageToCrop(null);
+        }}
+        onCropDone={async (croppedImage) => {
+          setCropModalVisible(false);
+          setImageToCrop(null);
 
-      <TouchableOpacity
-        style={styles.logoutButton}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoutText}>Logout</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          await uploadProfilePhoto({
+            uri: croppedImage.uri,
+            webFile: croppedImage.file,
+            fileName: 'profile-photo.jpg',
+            mimeType: 'image/jpeg',
+          });
+        }}
+      />
+    </>
   );
 }
 
@@ -614,14 +661,6 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 12,
     backgroundColor: colors.bg,
-  },
-
-  businessImage: {
-    width: '100%',
-    height: 150,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: '#eee',
   },
 
   businessName: {
