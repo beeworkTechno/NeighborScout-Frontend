@@ -24,6 +24,7 @@ export default function BusinessDetailPage() {
   const [business, setBusiness] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -34,6 +35,7 @@ export default function BusinessDetailPage() {
   const loadBusinessDetails = async () => {
     try {
       setLoading(true);
+      setImageError(false);
 
       const businessResponse = await api.get(`/businesses/${id}`);
       setBusiness(businessResponse.data);
@@ -81,12 +83,26 @@ export default function BusinessDetailPage() {
   };
 
   const getBusinessUrl = () => {
-    if (business?.businessPageUrl) return business.businessPageUrl;
+    if (business?.businessPageUrl) {
+      return business.businessPageUrl;
+    }
 
-    if (!id) return '';
+    if (!id) {
+      return '';
+    }
 
     return `http://localhost:8081/business/${id}`;
   };
+
+  const getBusinessImageUrl = () => {
+    if (!business?.profilePhoto) {
+      return null;
+    }
+
+    return getImageUrl(business.profilePhoto);
+  };
+
+  const shouldShowBusinessImage = business?.profilePhoto && !imageError;
 
   if (loading) {
     return (
@@ -105,6 +121,7 @@ export default function BusinessDetailPage() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
+          activeOpacity={0.8}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -116,7 +133,7 @@ export default function BusinessDetailPage() {
     <SafeAreaView style={styles.container}>
       <ScrollView>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.8}>
             <Ionicons name="arrow-back" size={26} color="#222" />
           </TouchableOpacity>
 
@@ -126,15 +143,22 @@ export default function BusinessDetailPage() {
         </View>
 
         <View style={styles.heroCard}>
-          {business.profilePhoto ? (
+          {shouldShowBusinessImage ? (
             <Image
-              source={{ uri: getImageUrl(business.profilePhoto) }}
+              source={{ uri: getBusinessImageUrl() }}
               style={styles.businessHeroImage}
+              resizeMode="cover"
+              onError={(error) => {
+                console.log('Business Image Load Error:', error?.nativeEvent);
+                setImageError(true);
+              }}
             />
           ) : (
-            <Text style={styles.businessIcon}>
-              {getCategoryIcon(business.category)}
-            </Text>
+            <View style={styles.businessIconBox}>
+              <Text style={styles.businessIcon}>
+                {getCategoryIcon(business.category)}
+              </Text>
+            </View>
           )}
 
           <Text style={styles.businessName}>{business.name}</Text>
@@ -159,6 +183,7 @@ export default function BusinessDetailPage() {
 
           <View style={styles.infoRow}>
             <Ionicons name="location-outline" size={20} color="#F9B208" />
+
             <Text style={styles.infoText}>
               {business.address || 'Address not provided'}
             </Text>
@@ -179,6 +204,7 @@ export default function BusinessDetailPage() {
 
             <View style={styles.infoRow}>
               <Ionicons name="call-outline" size={20} color="#F9B208" />
+
               <Text style={styles.infoText}>{business.phone}</Text>
             </View>
           </View>
@@ -273,15 +299,26 @@ const styles = StyleSheet.create({
 
   businessHeroImage: {
     width: '100%',
-    height: 220,
+    height: 230,
     borderRadius: 16,
     marginBottom: 16,
     backgroundColor: '#eee',
   },
 
+  businessIconBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: '#F9B208',
+  },
+
   businessIcon: {
     fontSize: 54,
-    marginBottom: 10,
   },
 
   businessName: {
@@ -370,6 +407,7 @@ const styles = StyleSheet.create({
   reviewName: {
     fontWeight: 'bold',
     color: '#222',
+    flex: 1,
   },
 
   reviewRating: {

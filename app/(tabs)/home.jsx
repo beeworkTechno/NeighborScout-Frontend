@@ -12,7 +12,6 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
-  Image,
 } from "react-native";
 
 import { Ionicons } from "@expo/vector-icons";
@@ -26,7 +25,6 @@ import {
   saveRole,
   clearToken,
 } from "../../utils/tokenUtils";
-import { getImageUrl } from "../../utils/imageUrl";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -394,19 +392,6 @@ export default function HomeScreen() {
 
   const renderBusinessCard = (business) => (
     <View style={styles.businessCard}>
-      {business.profilePhoto ? (
-        <Image
-          source={{ uri: getImageUrl(business.profilePhoto) }}
-          style={styles.businessPhoto}
-        />
-      ) : (
-        <View style={styles.businessPhotoPlaceholder}>
-          <Text style={styles.businessPhotoPlaceholderIcon}>
-            {getCategoryIcon(business.category)}
-          </Text>
-        </View>
-      )}
-
       <View style={styles.businessHeader}>
         <Text style={styles.businessName}>
           {getCategoryIcon(business.category)} {business.name}
@@ -960,28 +945,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#eee",
     elevation: 2,
-  },
-
-  businessPhoto: {
-    width: "100%",
-    height: 165,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: "#eee",
-  },
-
-  businessPhotoPlaceholder: {
-    width: "100%",
-    height: 130,
-    borderRadius: 12,
-    marginBottom: 12,
-    backgroundColor: "#FFF8E1",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  businessPhotoPlaceholderIcon: {
-    fontSize: 44,
   },
 
   businessHeader: {
