@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,10 +28,14 @@ console.log(
 export default function LoginScreen() {
   const router = useRouter();
 
+  const passwordInputRef = useRef(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingToken, setCheckingToken] = useState(true);
@@ -97,6 +101,10 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
+    if (loading || googleLoading) {
+      return;
+    }
+
     if (!validateLogin()) {
       return;
     }
@@ -104,6 +112,7 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       setErrors({});
+      setSuccessMessage('');
 
       const res = await axios.post(`${API_URL}/auth/login`, {
         email: email.trim().toLowerCase(),
@@ -120,7 +129,11 @@ export default function LoginScreen() {
       const role = res.data.role || res.data.user?.role || 'personal';
       await saveRole(role);
 
-      router.replace('/(tabs)/home');
+      setSuccessMessage('Login successful. Entering home page...');
+
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 1000);
     } catch (error) {
       console.log('Login Error:', error?.response?.data || error);
 
@@ -141,6 +154,8 @@ export default function LoginScreen() {
       try {
         if (response?.type === 'success') {
           setGoogleLoading(true);
+          setErrors({});
+          setSuccessMessage('');
 
           const token = response.authentication?.idToken;
 
@@ -163,7 +178,11 @@ export default function LoginScreen() {
           const role = res.data.role || res.data.user?.role || 'personal';
           await saveRole(role);
 
-          router.replace('/(tabs)/home');
+          setSuccessMessage('Google login successful. Entering home page...');
+
+          setTimeout(() => {
+            router.replace('/(tabs)/home');
+          }, 1000);
         }
       } catch (error) {
         console.log('Google Login Error:', error?.response?.data || error);
@@ -199,6 +218,10 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>NeighborScout Login</Text>
 
+      {successMessage ? (
+        <Text style={styles.successBox}>{successMessage}</Text>
+      ) : null}
+
       {errors.form ? (
         <Text style={styles.formError}>{errors.form}</Text>
       ) : null}
@@ -208,6 +231,10 @@ export default function LoginScreen() {
         value={email}
         onChangeText={(text) => {
           setEmail(text);
+
+          if (successMessage) {
+            setSuccessMessage('');
+          }
 
           if (errors.email || errors.form) {
             setErrors({
@@ -223,6 +250,10 @@ export default function LoginScreen() {
         ]}
         autoCapitalize="none"
         keyboardType="email-address"
+        autoCorrect={false}
+        returnKeyType="next"
+        blurOnSubmit={false}
+        onSubmitEditing={() => passwordInputRef.current?.focus()}
       />
 
       {errors.email ? (
@@ -230,10 +261,15 @@ export default function LoginScreen() {
       ) : null}
 
       <TextInput
+        ref={passwordInputRef}
         placeholder="Password"
         value={password}
         onChangeText={(text) => {
           setPassword(text);
+
+          if (successMessage) {
+            setSuccessMessage('');
+          }
 
           if (errors.password || errors.form) {
             setErrors({
@@ -248,6 +284,8 @@ export default function LoginScreen() {
           errors.password ? styles.inputError : null,
         ]}
         secureTextEntry
+        returnKeyType="done"
+        onSubmitEditing={handleLogin}
       />
 
       {errors.password ? (
@@ -260,7 +298,7 @@ export default function LoginScreen() {
           loading ? styles.disabledButton : null,
         ]}
         onPress={handleLogin}
-        disabled={loading}
+        disabled={loading || googleLoading}
       >
         {loading ? (
           <ActivityIndicator color={colors.white} />
@@ -275,7 +313,7 @@ export default function LoginScreen() {
           googleLoading ? styles.disabledButton : null,
         ]}
         onPress={() => promptAsync()}
-        disabled={googleLoading}
+        disabled={googleLoading || loading}
       >
         {googleLoading ? (
           <ActivityIndicator color={colors.white} />
@@ -319,6 +357,16 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
     color: colors.text,
+  },
+
+  successBox: {
+    backgroundColor: '#E8F5E9',
+    color: '#2E7D32',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 
   input: {
