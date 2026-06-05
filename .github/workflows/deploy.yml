@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      EXPO_PUBLIC_API_URL: https://YOUR_RENDER_BACKEND_URL.onrender.com/api
+      EXPO_PUBLIC_API_URL: https://neighborscout-backend.onrender.com/api
 
     steps:
       - name: Checkout repository
