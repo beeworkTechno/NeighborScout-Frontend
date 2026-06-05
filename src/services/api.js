@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { getToken } from '../../utils/tokenUtils';
 
-export const API_URL = 'http://localhost:5001/api';
+export const API_URL =
+  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -11,7 +12,6 @@ const api = axios.create({
   },
 });
 
-// Attach JWT token automatically to protected API requests
 api.interceptors.request.use(
   async (config) => {
     const token = await getToken();
@@ -27,7 +27,6 @@ api.interceptors.request.use(
   }
 );
 
-// Optional: better error logging for debugging
 api.interceptors.response.use(
   (response) => response,
   (error) => {
