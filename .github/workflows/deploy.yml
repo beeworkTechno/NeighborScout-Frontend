@@ -36,7 +36,7 @@ jobs:
         run: npm ci
 
       - name: Export Expo web app
-        run: npx expo export --platform web --base-url /beeworkTechno/NeighborScout-Frontend
+        run: npx expo export --platform web
 
       - name: Add nojekyll file
         run: touch dist/.nojekyll
