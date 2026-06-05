@@ -753,7 +753,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     marginTop: 4,
-  },
+  },//
 
   logoutText: {
     color: colors.white,
