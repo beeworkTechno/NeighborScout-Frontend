@@ -186,6 +186,10 @@ export default function ProfileScreen() {
     }
   };
 
+  const handlePreviewBusiness = (businessId) => {
+    router.push(`/business/${businessId}`);
+  };
+
   const formatDate = (dateValue) => {
     if (!dateValue) return 'Not available';
 
@@ -343,11 +347,7 @@ export default function ProfileScreen() {
                 </Text>
               ) : (
                 myBusinesses.map((business) => (
-                  <TouchableOpacity
-                    key={business._id}
-                    style={styles.businessItem}
-                    onPress={() => router.push(`/business/${business._id}`)}
-                  >
+                  <View key={business._id} style={styles.businessItem}>
                     <Text style={styles.businessName}>{business.name}</Text>
 
                     <Text style={styles.businessCategory}>
@@ -367,7 +367,17 @@ export default function ProfileScreen() {
                         Reviews: {business.reviewCount || 0}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.previewButton}
+                      onPress={() => handlePreviewBusiness(business._id)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.previewButtonText}>
+                        Preview Listing
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 ))
               )}
             </View>
@@ -686,6 +696,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     flex: 1,
+  },
+
+  previewButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+
+  previewButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 
   emptyText: {
