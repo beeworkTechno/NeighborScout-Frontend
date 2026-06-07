@@ -42,6 +42,8 @@ export default function HomeScreen() {
   const [mapSelectedBusiness, setMapSelectedBusiness] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -57,6 +59,23 @@ export default function HomeScreen() {
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
+
+  const categories = [
+    "All",
+    "Restaurant",
+    "Cafe",
+    "Grocery",
+    "Pharmacy",
+    "Hotel",
+    "Salon",
+    "Repair",
+    "Furniture",
+    "School",
+    "Gym",
+    "Hospital",
+    "Bank",
+    "Shop",
+  ];
 
   useEffect(() => {
     loadHomeData();
@@ -375,10 +394,7 @@ export default function HomeScreen() {
 
   const getFilteredBusinesses = (list) => {
     const query = searchQuery.trim().toLowerCase();
-
-    if (!query) {
-      return list;
-    }
+    const categoryFilter = selectedCategory.trim().toLowerCase();
 
     return list.filter((business) => {
       const name = business.name?.toLowerCase() || "";
@@ -386,13 +402,23 @@ export default function HomeScreen() {
       const address = business.address?.toLowerCase() || "";
       const description = business.description?.toLowerCase() || "";
 
-      return (
+      const matchesSearch =
+        !query ||
         name.includes(query) ||
         category.includes(query) ||
         address.includes(query) ||
-        description.includes(query)
-      );
+        description.includes(query);
+
+      const matchesCategory =
+        selectedCategory === "All" || category.includes(categoryFilter);
+
+      return matchesSearch && matchesCategory;
     });
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory("All");
+    setShowCategoryFilters(false);
   };
 
   const renderHeaderProfileButton = () => {
@@ -475,38 +501,97 @@ export default function HomeScreen() {
   const renderSearchBar = (
     placeholder = "Search businesses by name, category, or address..."
   ) => (
-    <View style={styles.searchBar}>
-      <Ionicons name="search-outline" size={20} color="#999" />
+    <View>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#999" />
 
-      <TextInput
-        style={styles.searchInput}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-      />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={placeholder}
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
 
-      {searchQuery.length > 0 && (
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            style={styles.searchIconButton}
+            onPress={() => setSearchQuery("")}
+          >
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.searchDivider} />
+
         <TouchableOpacity
-          style={styles.searchIconButton}
-          onPress={() => setSearchQuery("")}
+          style={[
+            styles.filterIconButton,
+            showCategoryFilters || selectedCategory !== "All"
+              ? styles.filterIconButtonActive
+              : null,
+          ]}
+          activeOpacity={0.7}
+          onPress={() => setShowCategoryFilters(!showCategoryFilters)}
         >
-          <Ionicons name="close-circle" size={20} color="#999" />
+          <Ionicons
+            name="options-outline"
+            size={24}
+            color={
+              showCategoryFilters || selectedCategory !== "All"
+                ? "#fff"
+                : "#222"
+            }
+          />
         </TouchableOpacity>
+      </View>
+
+      {showCategoryFilters && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilterContainer}
+        >
+          {categories.map((category) => {
+            const isActive = selectedCategory === category;
+
+            return (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryChip,
+                  isActive ? styles.categoryChipActive : null,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    isActive ? styles.categoryChipTextActive : null,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       )}
 
-      <View style={styles.searchDivider} />
+      {selectedCategory !== "All" && (
+        <View style={styles.activeFilterRow}>
+          <Text style={styles.activeFilterText}>
+            Filtering by: {selectedCategory}
+          </Text>
 
-      <TouchableOpacity
-        style={styles.filterIconButton}
-        activeOpacity={0.7}
-        onPress={() => router.push("/(tabs)/search")}
-      >
-        <Ionicons name="options-outline" size={24} color="#222" />
-      </TouchableOpacity>
+          <TouchableOpacity onPress={clearFilters}>
+            <Text style={styles.clearFilterText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -540,8 +625,8 @@ export default function HomeScreen() {
             <ActivityIndicator color="#F9B208" />
           ) : filteredBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
-              {searchQuery.trim()
-                ? "No businesses match your search."
+              {searchQuery.trim() || selectedCategory !== "All"
+                ? "No businesses match your filters."
                 : "No businesses found yet."}
             </Text>
           ) : (
@@ -630,7 +715,7 @@ export default function HomeScreen() {
             </Text>
           ) : filteredMyBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
-              No businesses match your search.
+              No businesses match your filters.
             </Text>
           ) : (
             filteredMyBusinesses.map((business) => (
@@ -981,9 +1066,66 @@ const styles = StyleSheet.create({
   },
 
   filterIconButton: {
-    padding: 4,
+    padding: 6,
     justifyContent: "center",
     alignItems: "center",
+    borderRadius: 20,
+  },
+
+  filterIconButtonActive: {
+    backgroundColor: "#F9B208",
+  },
+
+  categoryFilterContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    gap: 8,
+  },
+
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+
+  categoryChipActive: {
+    backgroundColor: "#F9B208",
+    borderColor: "#F9B208",
+  },
+
+  categoryChipText: {
+    color: "#333",
+    fontWeight: "600",
+  },
+
+  categoryChipTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  activeFilterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: "#FFF8E1",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+
+  activeFilterText: {
+    color: "#555",
+    fontWeight: "600",
+  },
+
+  clearFilterText: {
+    color: "#D32F2F",
+    fontWeight: "bold",
   },
 
   signOutButton: {
