@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const [imageToCrop, setImageToCrop] = useState(null);
   const [cropModalVisible, setCropModalVisible] = useState(false);
@@ -192,6 +193,60 @@ export default function ProfileScreen() {
 
   const handleEditBusiness = (businessId) => {
     router.push(`/edit-business/${businessId}`);
+  };
+
+  const handleDeleteBusiness = (businessId) => {
+    const deleteBusiness = async () => {
+      try {
+        setDeleteLoadingId(businessId);
+
+        await api.delete(`/businesses/${businessId}`);
+
+        setMyBusinesses((previousBusinesses) =>
+          previousBusinesses.filter((business) => business._id !== businessId)
+        );
+
+        Alert.alert('Deleted', 'Business listing deleted successfully.');
+      } catch (error) {
+        console.log('Delete Business Error:', error?.response?.data || error);
+
+        Alert.alert(
+          'Delete Error',
+          error?.response?.data?.message ||
+            'Could not delete business listing. Please try again.'
+        );
+      } finally {
+        setDeleteLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Are you sure you want to delete this business listing? This action cannot be undone.'
+      );
+
+      if (confirmed) {
+        deleteBusiness();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      'Delete Business',
+      'Are you sure you want to delete this business listing? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: deleteBusiness,
+        },
+      ]
+    );
   };
 
   const formatDate = (dateValue) => {
@@ -374,7 +429,10 @@ export default function ProfileScreen() {
 
                     <View style={styles.businessActionRow}>
                       <TouchableOpacity
-                        style={[styles.previewButton, styles.businessActionButton]}
+                        style={[
+                          styles.previewButton,
+                          styles.businessActionButton,
+                        ]}
                         onPress={() => handlePreviewBusiness(business._id)}
                         activeOpacity={0.8}
                       >
@@ -382,11 +440,32 @@ export default function ProfileScreen() {
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={[styles.editButton, styles.businessActionButton]}
+                        style={[
+                          styles.editButton,
+                          styles.businessActionButton,
+                        ]}
                         onPress={() => handleEditBusiness(business._id)}
                         activeOpacity={0.8}
                       >
-                        <Text style={styles.editButtonText}>Edit Listing</Text>
+                        <Text style={styles.editButtonText}>Edit</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.deleteButton,
+                          styles.businessActionButton,
+                          deleteLoadingId === business._id &&
+                            styles.disabledButton,
+                        ]}
+                        onPress={() => handleDeleteBusiness(business._id)}
+                        disabled={deleteLoadingId === business._id}
+                        activeOpacity={0.8}
+                      >
+                        {deleteLoadingId === business._id ? (
+                          <ActivityIndicator color={colors.white} />
+                        ) : (
+                          <Text style={styles.deleteButtonText}>Delete</Text>
+                        )}
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -723,7 +802,7 @@ const styles = StyleSheet.create({
   previewButton: {
     backgroundColor: '#222',
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -731,13 +810,13 @@ const styles = StyleSheet.create({
   previewButtonText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 13,
   },
 
   editButton: {
     backgroundColor: colors.primary,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 10,
     alignItems: 'center',
   },
@@ -745,7 +824,25 @@ const styles = StyleSheet.create({
   editButtonText: {
     color: colors.white,
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 13,
+  },
+
+  deleteButton: {
+    backgroundColor: '#D32F2F',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  deleteButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  disabledButton: {
+    opacity: 0.7,
   },
 
   emptyText: {
