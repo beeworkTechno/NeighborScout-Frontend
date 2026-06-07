@@ -17,6 +17,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 
 import BusinessMap from "../../components/BusinessMap";
 import api from "../../src/services/api";
@@ -46,6 +47,10 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -78,9 +83,38 @@ export default function HomeScreen() {
       }
 
       await fetchUserData();
+      await fetchUserLocation();
       await fetchBusinesses();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserLocation = async () => {
+    try {
+      setLocationLoading(true);
+      setLocationError("");
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        setLocationError("Location permission denied.");
+        setUserLocation(null);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+
+      setUserLocation({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+    } catch (error) {
+      console.log("Fetch User Location Error:", error);
+      setLocationError("Could not get your current location.");
+      setUserLocation(null);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -377,6 +411,102 @@ export default function HomeScreen() {
     return `${business.averageRating || 0} ⭐`;
   };
 
+  const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
+    const earthRadiusKm = 6371;
+
+    const toRadians = (degree) => {
+      return degree * (Math.PI / 180);
+    };
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * c;
+  };
+
+  const getBusinessCoordinates = (business) => {
+    if (
+      business?.location?.coordinates &&
+      Array.isArray(business.location.coordinates) &&
+      business.location.coordinates.length === 2
+    ) {
+      const longitude = Number(business.location.coordinates[0]);
+      const latitude = Number(business.location.coordinates[1]);
+
+      if (
+        !Number.isNaN(latitude) &&
+        !Number.isNaN(longitude) &&
+        latitude >= -90 &&
+        latitude <= 90 &&
+        longitude >= -180 &&
+        longitude <= 180
+      ) {
+        return {
+          latitude,
+          longitude,
+        };
+      }
+    }
+
+    const latitude = Number(business.latitude);
+    const longitude = Number(business.longitude);
+
+    if (
+      Number.isNaN(latitude) ||
+      Number.isNaN(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return null;
+    }
+
+    return {
+      latitude,
+      longitude,
+    };
+  };
+
+  const getNearestBusinesses = (list) => {
+    if (!userLocation) {
+      return list.slice(0, 10);
+    }
+
+    return list
+      .map((business) => {
+        const coordinates = getBusinessCoordinates(business);
+
+        if (!coordinates) {
+          return null;
+        }
+
+        const distance = getDistanceInKm(
+          userLocation.latitude,
+          userLocation.longitude,
+          coordinates.latitude,
+          coordinates.longitude
+        );
+
+        return {
+          ...business,
+          distance,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 10);
+  };
+
   const getFilteredBusinesses = (list) => {
     const query = searchQuery.trim().toLowerCase();
     const categoryFilter = selectedCategory.trim().toLowerCase();
@@ -440,6 +570,12 @@ export default function HomeScreen() {
       <Text style={styles.businessCategory}>
         {business.category || "Business"}
       </Text>
+
+      {typeof business.distance === "number" ? (
+        <Text style={styles.distanceText}>
+          {business.distance.toFixed(1)} km away
+        </Text>
+      ) : null}
 
       <Text style={styles.businessText}>
         {business.description || "No description available"}
@@ -581,7 +717,8 @@ export default function HomeScreen() {
   );
 
   const renderPersonalDashboard = () => {
-    const filteredBusinesses = getFilteredBusinesses(businesses);
+    const nearestBusinesses = getNearestBusinesses(businesses);
+    const filteredBusinesses = getFilteredBusinesses(nearestBusinesses);
 
     return (
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -589,14 +726,14 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.welcomeText}>Hello, {userName}!</Text>
             <Text style={styles.subtitle}>
-              Discover and review local businesses
+              Discover and review nearby local businesses
             </Text>
           </View>
 
           {renderHeaderProfileButton()}
         </View>
 
-        {renderSearchBar("Search businesses by name, category, or address...")}
+        {renderSearchBar("Search nearby businesses...")}
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -604,15 +741,27 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Local Businesses</Text>
+          <Text style={styles.sectionTitle}>Top 10 Nearest Businesses</Text>
+
+          {locationLoading ? (
+            <Text style={styles.locationInfoText}>Getting your location...</Text>
+          ) : locationError ? (
+            <Text style={styles.locationWarningText}>
+              Location unavailable. Showing limited business results.
+            </Text>
+          ) : userLocation ? (
+            <Text style={styles.locationInfoText}>
+              Sorted by distance from your current location.
+            </Text>
+          ) : null}
 
           {loading ? (
             <ActivityIndicator color="#F9B208" />
           ) : filteredBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
               {searchQuery.trim() || selectedCategory !== "All"
-                ? "No businesses match your filters."
-                : "No businesses found yet."}
+                ? "No nearby businesses match your filters."
+                : "No nearby businesses found yet."}
             </Text>
           ) : (
             <FlatList
@@ -1111,6 +1260,27 @@ const styles = StyleSheet.create({
   clearFilterText: {
     color: "#D32F2F",
     fontWeight: "bold",
+  },
+
+  locationInfoText: {
+    color: "#666",
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+
+  locationWarningText: {
+    color: "#D32F2F",
+    backgroundColor: "#FFECEC",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontWeight: "600",
+  },
+
+  distanceText: {
+    color: "#1976D2",
+    fontWeight: "bold",
+    marginTop: 5,
   },
 
   signOutButton: {
