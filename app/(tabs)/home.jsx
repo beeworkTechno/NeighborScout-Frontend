@@ -490,10 +490,23 @@ export default function HomeScreen() {
       />
 
       {searchQuery.length > 0 && (
-        <TouchableOpacity onPress={() => setSearchQuery("")}>
+        <TouchableOpacity
+          style={styles.searchIconButton}
+          onPress={() => setSearchQuery("")}
+        >
           <Ionicons name="close-circle" size={20} color="#999" />
         </TouchableOpacity>
       )}
+
+      <View style={styles.searchDivider} />
+
+      <TouchableOpacity
+        style={styles.filterIconButton}
+        activeOpacity={0.7}
+        onPress={() => router.push("/(tabs)/search")}
+      >
+        <Ionicons name="options-outline" size={24} color="#222" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -937,12 +950,15 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: "row",
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: "#f5f5f5",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
   },
 
   searchInput: {
@@ -951,6 +967,23 @@ const styles = StyleSheet.create({
     color: "#222",
     fontSize: 15,
     outlineStyle: "none",
+  },
+
+  searchIconButton: {
+    padding: 4,
+  },
+
+  searchDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#ddd",
+    marginHorizontal: 8,
+  },
+
+  filterIconButton: {
+    padding: 4,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   signOutButton: {
