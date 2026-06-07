@@ -29,6 +29,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const [imageToCrop, setImageToCrop] = useState(null);
   const [cropModalVisible, setCropModalVisible] = useState(false);
@@ -184,6 +185,68 @@ export default function ProfileScreen() {
       console.log('Logout Error:', error);
       Alert.alert('Error', 'Logout failed. Please try again.');
     }
+  };
+
+  const handlePreviewBusiness = (businessId) => {
+    router.push(`/business/${businessId}`);
+  };
+
+  const handleEditBusiness = (businessId) => {
+    router.push(`/edit-business/${businessId}`);
+  };
+
+  const handleDeleteBusiness = (businessId) => {
+    const deleteBusiness = async () => {
+      try {
+        setDeleteLoadingId(businessId);
+
+        await api.delete(`/businesses/${businessId}`);
+
+        setMyBusinesses((previousBusinesses) =>
+          previousBusinesses.filter((business) => business._id !== businessId)
+        );
+
+        Alert.alert('Deleted', 'Business listing deleted successfully.');
+      } catch (error) {
+        console.log('Delete Business Error:', error?.response?.data || error);
+
+        Alert.alert(
+          'Delete Error',
+          error?.response?.data?.message ||
+            'Could not delete business listing. Please try again.'
+        );
+      } finally {
+        setDeleteLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Are you sure you want to delete this business listing? This action cannot be undone.'
+      );
+
+      if (confirmed) {
+        deleteBusiness();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      'Delete Business',
+      'Are you sure you want to delete this business listing? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: deleteBusiness,
+        },
+      ]
+    );
   };
 
   const formatDate = (dateValue) => {
@@ -343,11 +406,7 @@ export default function ProfileScreen() {
                 </Text>
               ) : (
                 myBusinesses.map((business) => (
-                  <TouchableOpacity
-                    key={business._id}
-                    style={styles.businessItem}
-                    onPress={() => router.push(`/business/${business._id}`)}
-                  >
+                  <View key={business._id} style={styles.businessItem}>
                     <Text style={styles.businessName}>{business.name}</Text>
 
                     <Text style={styles.businessCategory}>
@@ -367,7 +426,49 @@ export default function ProfileScreen() {
                         Reviews: {business.reviewCount || 0}
                       </Text>
                     </View>
-                  </TouchableOpacity>
+
+                    <View style={styles.businessActionRow}>
+                      <TouchableOpacity
+                        style={[
+                          styles.previewButton,
+                          styles.businessActionButton,
+                        ]}
+                        onPress={() => handlePreviewBusiness(business._id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.previewButtonText}>Preview</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.editButton,
+                          styles.businessActionButton,
+                        ]}
+                        onPress={() => handleEditBusiness(business._id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.editButtonText}>Edit</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.deleteButton,
+                          styles.businessActionButton,
+                          deleteLoadingId === business._id &&
+                            styles.disabledButton,
+                        ]}
+                        onPress={() => handleDeleteBusiness(business._id)}
+                        disabled={deleteLoadingId === business._id}
+                        activeOpacity={0.8}
+                      >
+                        {deleteLoadingId === business._id ? (
+                          <ActivityIndicator color={colors.white} />
+                        ) : (
+                          <Text style={styles.deleteButtonText}>Delete</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
                 ))
               )}
             </View>
@@ -693,6 +794,62 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
     flex: 1,
+  },
+
+  businessActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+
+  businessActionButton: {
+    flex: 1,
+  },
+
+  previewButton: {
+    backgroundColor: '#222',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  previewButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  editButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  editButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  deleteButton: {
+    backgroundColor: '#D32F2F',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  deleteButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  disabledButton: {
+    opacity: 0.7,
   },
 
   emptyText: {

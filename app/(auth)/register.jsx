@@ -30,17 +30,14 @@ export default function Register() {
   });
 
   const [errors, setErrors] = useState({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const [registeredSuccessfully, setRegisteredSuccessfully] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  // ==========================
-  // Google Auth
-  // ==========================
   const { response, promptAsync } = useGoogleAuth();
 
-  // ==========================
-  // Helpers
-  // ==========================
   const isValidEmail = (value) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   };
@@ -94,14 +91,16 @@ export default function Register() {
     return Object.keys(newErrors).length === 0;
   };
 
-  // ==========================
-  // Handle Inputs
-  // ==========================
   const handleChange = (key, value) => {
     setForm({
       ...form,
       [key]: value,
     });
+
+    if (successMessage) {
+      setSuccessMessage('');
+      setRegisteredSuccessfully(false);
+    }
 
     if (errors[key] || errors.form) {
       setErrors({
@@ -112,9 +111,6 @@ export default function Register() {
     }
   };
 
-  // ==========================
-  // Normal Register
-  // ==========================
   const handleRegister = async () => {
     if (!validateRegister()) {
       return;
@@ -123,6 +119,8 @@ export default function Register() {
     try {
       setLoading(true);
       setErrors({});
+      setSuccessMessage('');
+      setRegisteredSuccessfully(false);
 
       const cleanedForm = {
         ...form,
@@ -134,9 +132,15 @@ export default function Register() {
 
       await saveRole(cleanedForm.role || data.role || 'personal');
 
-      Alert.alert('Success', 'Account created successfully!');
+      setSuccessMessage('Account created successfully. Click Enter to login.');
+      setRegisteredSuccessfully(true);
 
-      router.push('/login');
+      setForm({
+        name: '',
+        email: '',
+        password: '',
+        role: 'personal',
+      });
     } catch (err) {
       console.log('Register Error:', err?.response?.data || err);
 
@@ -155,14 +159,14 @@ export default function Register() {
     }
   };
 
-  // ==========================
-  // Google Register/Login
-  // ==========================
   useEffect(() => {
     const handleGoogleRegister = async () => {
       try {
         if (response?.type === 'success') {
           setGoogleLoading(true);
+          setErrors({});
+          setSuccessMessage('');
+          setRegisteredSuccessfully(false);
 
           const { authentication } = response;
 
@@ -178,12 +182,19 @@ export default function Register() {
             token: authentication.idToken,
           });
 
+          if (!res.data.token) {
+            Alert.alert('Google Signup Error', 'No token received from server.');
+            return;
+          }
+
           await saveToken(res.data.token);
           await saveRole(res.data.role || res.data.user?.role || 'personal');
 
-          Alert.alert('Success', 'Google authentication successful');
+          setSuccessMessage('Google authentication successful. Entering home page...');
 
-          router.replace('/home');
+          setTimeout(() => {
+            router.replace('/(tabs)/home');
+          }, 1000);
         }
       } catch (error) {
         console.log('Google Register Error:', error?.response?.data || error);
@@ -210,11 +221,14 @@ export default function Register() {
     <View style={styles.container}>
       <Text style={styles.title}>Create Account</Text>
 
+      {successMessage ? (
+        <Text style={styles.successBox}>{successMessage}</Text>
+      ) : null}
+
       {errors.form ? (
         <Text style={styles.formError}>{errors.form}</Text>
       ) : null}
 
-      {/* Role selection */}
       <View style={styles.roleContainer}>
         <TouchableOpacity
           onPress={() => handleChange('role', 'personal')}
@@ -222,6 +236,7 @@ export default function Register() {
             styles.roleButton,
             form.role === 'personal' && styles.roleButtonActive,
           ]}
+          disabled={loading || googleLoading}
         >
           <Text
             style={[
@@ -239,6 +254,7 @@ export default function Register() {
             styles.roleButton,
             form.role === 'business' && styles.roleButtonActive,
           ]}
+          disabled={loading || googleLoading}
         >
           <Text
             style={[
@@ -255,7 +271,6 @@ export default function Register() {
         <Text style={styles.errorText}>{errors.role}</Text>
       ) : null}
 
-      {/* Name */}
       <TextInput
         placeholder="Name"
         value={form.name}
@@ -264,13 +279,13 @@ export default function Register() {
           errors.name ? styles.inputError : null,
         ]}
         onChangeText={(text) => handleChange('name', text)}
+        editable={!loading && !googleLoading}
       />
 
       {errors.name ? (
         <Text style={styles.errorText}>{errors.name}</Text>
       ) : null}
 
-      {/* Email */}
       <TextInput
         placeholder="Email"
         value={form.email}
@@ -281,13 +296,13 @@ export default function Register() {
         autoCapitalize="none"
         keyboardType="email-address"
         onChangeText={(text) => handleChange('email', text)}
+        editable={!loading && !googleLoading}
       />
 
       {errors.email ? (
         <Text style={styles.errorText}>{errors.email}</Text>
       ) : null}
 
-      {/* Password */}
       <TextInput
         placeholder="Password"
         value={form.password}
@@ -297,36 +312,44 @@ export default function Register() {
           errors.password ? styles.inputError : null,
         ]}
         onChangeText={(text) => handleChange('password', text)}
+        editable={!loading && !googleLoading}
       />
 
       {errors.password ? (
         <Text style={styles.errorText}>{errors.password}</Text>
       ) : null}
 
-      {/* Register Button */}
-      <TouchableOpacity
-        style={[
-          styles.registerButton,
-          loading ? styles.disabledButton : null,
-        ]}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Register</Text>
-        )}
-      </TouchableOpacity>
+      {!registeredSuccessfully ? (
+        <TouchableOpacity
+          style={[
+            styles.registerButton,
+            loading ? styles.disabledButton : null,
+          ]}
+          onPress={handleRegister}
+          disabled={loading || googleLoading}
+        >
+          {loading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Register</Text>
+          )}
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={styles.enterLoginButton}
+          onPress={() => router.replace('/(auth)/login')}
+        >
+          <Text style={styles.buttonText}>Enter to Login</Text>
+        </TouchableOpacity>
+      )}
 
-      {/* Google Signup */}
       <TouchableOpacity
         style={[
           styles.googleButton,
           googleLoading ? styles.disabledButton : null,
         ]}
         onPress={() => promptAsync()}
-        disabled={googleLoading}
+        disabled={googleLoading || loading}
       >
         {googleLoading ? (
           <ActivityIndicator color={colors.white} />
@@ -335,8 +358,10 @@ export default function Register() {
         )}
       </TouchableOpacity>
 
-      {/* Login Link */}
-      <Text style={styles.link} onPress={() => router.push('/login')}>
+      <Text
+        style={styles.link}
+        onPress={() => router.push('/(auth)/login')}
+      >
         Already have an account? Login
       </Text>
     </View>
@@ -357,6 +382,16 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     textAlign: 'center',
     color: colors.text,
+  },
+
+  successBox: {
+    backgroundColor: '#E8F5E9',
+    color: '#2E7D32',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    textAlign: 'center',
+    fontWeight: '600',
   },
 
   input: {
@@ -399,6 +434,15 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 4,
+  },
+
+  enterLoginButton: {
+    backgroundColor: colors.primary,
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginTop: 8,
+    marginBottom: 15,
   },
 
   googleButton: {

@@ -17,6 +17,7 @@ import {
 
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import * as Location from "expo-location";
 
 import BusinessMap from "../../components/BusinessMap";
 import api from "../../src/services/api";
@@ -28,6 +29,8 @@ import {
   clearToken,
 } from "../../utils/tokenUtils";
 import { getUserProfilePhotoUrl } from "../../utils/userPhoto";
+
+import { BUSINESS_CATEGORIES_WITH_ALL } from "../../src/constants/businessCategories";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -43,6 +46,12 @@ export default function HomeScreen() {
   const [mapSelectedBusiness, setMapSelectedBusiness] = useState(null);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [showCategoryFilters, setShowCategoryFilters] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [userLocation, setUserLocation] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState("");
 
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [selectedBusiness, setSelectedBusiness] = useState(null);
@@ -75,9 +84,38 @@ export default function HomeScreen() {
       }
 
       await fetchUserData();
+      await fetchUserLocation();
       await fetchBusinesses();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserLocation = async () => {
+    try {
+      setLocationLoading(true);
+      setLocationError("");
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
+
+      if (status !== "granted") {
+        setLocationError("Location permission denied.");
+        setUserLocation(null);
+        return;
+      }
+
+      const currentLocation = await Location.getCurrentPositionAsync({});
+
+      setUserLocation({
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+    } catch (error) {
+      console.log("Fetch User Location Error:", error);
+      setLocationError("Could not get your current location.");
+      setUserLocation(null);
+    } finally {
+      setLocationLoading(false);
     }
   };
 
@@ -374,12 +412,105 @@ export default function HomeScreen() {
     return `${business.averageRating || 0} ⭐`;
   };
 
+  const getDistanceInKm = (lat1, lon1, lat2, lon2) => {
+    const earthRadiusKm = 6371;
+
+    const toRadians = (degree) => {
+      return degree * (Math.PI / 180);
+    };
+
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(toRadians(lat1)) *
+        Math.cos(toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * c;
+  };
+
+  const getBusinessCoordinates = (business) => {
+    if (
+      business?.location?.coordinates &&
+      Array.isArray(business.location.coordinates) &&
+      business.location.coordinates.length === 2
+    ) {
+      const longitude = Number(business.location.coordinates[0]);
+      const latitude = Number(business.location.coordinates[1]);
+
+      if (
+        !Number.isNaN(latitude) &&
+        !Number.isNaN(longitude) &&
+        latitude >= -90 &&
+        latitude <= 90 &&
+        longitude >= -180 &&
+        longitude <= 180
+      ) {
+        return {
+          latitude,
+          longitude,
+        };
+      }
+    }
+
+    const latitude = Number(business.latitude);
+    const longitude = Number(business.longitude);
+
+    if (
+      Number.isNaN(latitude) ||
+      Number.isNaN(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      return null;
+    }
+
+    return {
+      latitude,
+      longitude,
+    };
+  };
+
+  const getNearestBusinesses = (list) => {
+    if (!userLocation) {
+      return list.slice(0, 10);
+    }
+
+    return list
+      .map((business) => {
+        const coordinates = getBusinessCoordinates(business);
+
+        if (!coordinates) {
+          return null;
+        }
+
+        const distance = getDistanceInKm(
+          userLocation.latitude,
+          userLocation.longitude,
+          coordinates.latitude,
+          coordinates.longitude
+        );
+
+        return {
+          ...business,
+          distance,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 10);
+  };
+
   const getFilteredBusinesses = (list) => {
     const query = searchQuery.trim().toLowerCase();
-
-    if (!query) {
-      return list;
-    }
+    const categoryFilter = selectedCategory.trim().toLowerCase();
 
     return list.filter((business) => {
       const name = business.name?.toLowerCase() || "";
@@ -387,13 +518,23 @@ export default function HomeScreen() {
       const address = business.address?.toLowerCase() || "";
       const description = business.description?.toLowerCase() || "";
 
-      return (
+      const matchesSearch =
+        !query ||
         name.includes(query) ||
         category.includes(query) ||
         address.includes(query) ||
-        description.includes(query)
-      );
+        description.includes(query);
+
+      const matchesCategory =
+        selectedCategory === "All" || category.includes(categoryFilter);
+
+      return matchesSearch && matchesCategory;
     });
+  };
+
+  const clearFilters = () => {
+    setSelectedCategory("All");
+    setShowCategoryFilters(false);
   };
 
   const renderHeaderProfileButton = () => {
@@ -430,6 +571,12 @@ export default function HomeScreen() {
       <Text style={styles.businessCategory}>
         {business.category || "Business"}
       </Text>
+
+      {typeof business.distance === "number" ? (
+        <Text style={styles.distanceText}>
+          {business.distance.toFixed(1)} km away
+        </Text>
+      ) : null}
 
       <Text style={styles.businessText}>
         {business.description || "No description available"}
@@ -476,30 +623,103 @@ export default function HomeScreen() {
   const renderSearchBar = (
     placeholder = "Search businesses by name, category, or address..."
   ) => (
-    <View style={styles.searchBar}>
-      <Ionicons name="search-outline" size={20} color="#999" />
+    <View>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#999" />
 
-      <TextInput
-        style={styles.searchInput}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-        autoCapitalize="none"
-        autoCorrect={false}
-        returnKeyType="search"
-      />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={placeholder}
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
 
-      {searchQuery.length > 0 && (
-        <TouchableOpacity onPress={() => setSearchQuery("")}>
-          <Ionicons name="close-circle" size={20} color="#999" />
+        {searchQuery.length > 0 && (
+          <TouchableOpacity
+            style={styles.searchIconButton}
+            onPress={() => setSearchQuery("")}
+          >
+            <Ionicons name="close-circle" size={20} color="#999" />
+          </TouchableOpacity>
+        )}
+
+        <View style={styles.searchDivider} />
+
+        <TouchableOpacity
+          style={[
+            styles.filterIconButton,
+            showCategoryFilters || selectedCategory !== "All"
+              ? styles.filterIconButtonActive
+              : null,
+          ]}
+          activeOpacity={0.7}
+          onPress={() => setShowCategoryFilters(!showCategoryFilters)}
+        >
+          <Ionicons
+            name="options-outline"
+            size={24}
+            color={
+              showCategoryFilters || selectedCategory !== "All"
+                ? "#fff"
+                : "#222"
+            }
+          />
         </TouchableOpacity>
+      </View>
+
+      {showCategoryFilters && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryFilterContainer}
+        >
+          {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
+            const isActive = selectedCategory === category;
+
+            return (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryChip,
+                  isActive ? styles.categoryChipActive : null,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryChipText,
+                    isActive ? styles.categoryChipTextActive : null,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      )}
+
+      {selectedCategory !== "All" && (
+        <View style={styles.activeFilterRow}>
+          <Text style={styles.activeFilterText}>
+            Filtering by: {selectedCategory}
+          </Text>
+
+          <TouchableOpacity onPress={clearFilters}>
+            <Text style={styles.clearFilterText}>Clear</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
 
   const renderPersonalDashboard = () => {
-    const filteredBusinesses = getFilteredBusinesses(businesses);
+    const nearestBusinesses = getNearestBusinesses(businesses);
+    const filteredBusinesses = getFilteredBusinesses(nearestBusinesses);
 
     return (
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -507,14 +727,14 @@ export default function HomeScreen() {
           <View>
             <Text style={styles.welcomeText}>Hello, {userName}!</Text>
             <Text style={styles.subtitle}>
-              Discover and review local businesses
+              Discover and review nearby local businesses
             </Text>
           </View>
 
           {renderHeaderProfileButton()}
         </View>
 
-        {renderSearchBar("Search businesses by name, category, or address...")}
+        {renderSearchBar("Search nearby businesses...")}
 
         <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
           <Ionicons name="log-out-outline" size={18} color="#fff" />
@@ -522,15 +742,27 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Local Businesses</Text>
+          <Text style={styles.sectionTitle}>Top 10 Nearest Businesses</Text>
+
+          {locationLoading ? (
+            <Text style={styles.locationInfoText}>Getting your location...</Text>
+          ) : locationError ? (
+            <Text style={styles.locationWarningText}>
+              Location unavailable. Showing limited business results.
+            </Text>
+          ) : userLocation ? (
+            <Text style={styles.locationInfoText}>
+              Sorted by distance from your current location.
+            </Text>
+          ) : null}
 
           {loading ? (
             <ActivityIndicator color="#F9B208" />
           ) : filteredBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
-              {searchQuery.trim()
-                ? "No businesses match your search."
-                : "No businesses found yet."}
+              {searchQuery.trim() || selectedCategory !== "All"
+                ? "No nearby businesses match your filters."
+                : "No nearby businesses found yet."}
             </Text>
           ) : (
             <FlatList
@@ -618,7 +850,7 @@ export default function HomeScreen() {
             </Text>
           ) : filteredMyBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
-              No businesses match your search.
+              No businesses match your filters.
             </Text>
           ) : (
             filteredMyBusinesses.map((business) => (
@@ -938,12 +1170,15 @@ const styles = StyleSheet.create({
 
   searchBar: {
     flexDirection: "row",
-    padding: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     marginHorizontal: 20,
     marginBottom: 10,
-    borderRadius: 10,
+    borderRadius: 12,
     backgroundColor: "#f5f5f5",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#e6e6e6",
   },
 
   searchInput: {
@@ -952,6 +1187,101 @@ const styles = StyleSheet.create({
     color: "#222",
     fontSize: 15,
     outlineStyle: "none",
+  },
+
+  searchIconButton: {
+    padding: 4,
+  },
+
+  searchDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: "#ddd",
+    marginHorizontal: 8,
+  },
+
+  filterIconButton: {
+    padding: 6,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 20,
+  },
+
+  filterIconButtonActive: {
+    backgroundColor: "#F9B208",
+  },
+
+  categoryFilterContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+    gap: 8,
+  },
+
+  categoryChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#f5f5f5",
+    borderWidth: 1,
+    borderColor: "#ddd",
+  },
+
+  categoryChipActive: {
+    backgroundColor: "#F9B208",
+    borderColor: "#F9B208",
+  },
+
+  categoryChipText: {
+    color: "#333",
+    fontWeight: "600",
+  },
+
+  categoryChipTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  activeFilterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 10,
+    backgroundColor: "#FFF8E1",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+
+  activeFilterText: {
+    color: "#555",
+    fontWeight: "600",
+  },
+
+  clearFilterText: {
+    color: "#D32F2F",
+    fontWeight: "bold",
+  },
+
+  locationInfoText: {
+    color: "#666",
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+
+  locationWarningText: {
+    color: "#D32F2F",
+    backgroundColor: "#FFECEC",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontWeight: "600",
+  },
+
+  distanceText: {
+    color: "#1976D2",
+    fontWeight: "bold",
+    marginTop: 5,
   },
 
   signOutButton: {

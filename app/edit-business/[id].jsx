@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -12,21 +12,22 @@ import {
   Image,
 } from 'react-native';
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
 
-import api from '../src/services/api';
-import colors from '../src/styles/colors';
-import ImageCropModal from '../components/ImageCropModal';
+import api, { API_URL } from '../../src/services/api';
+import colors from '../../src/styles/colors';
+import ImageCropModal from '../../components/ImageCropModal';
 
 import {
   BUSINESS_CATEGORIES,
   DEFAULT_BUSINESS_CATEGORY,
-} from '../src/constants/businessCategories';
+} from '../../src/constants/businessCategories';
 
-export default function AddBusinessScreen() {
+export default function EditBusinessScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams();
 
   const [form, setForm] = useState({
     name: '',
@@ -38,14 +39,24 @@ export default function AddBusinessScreen() {
     longitude: '',
   });
 
+  const [existingBusiness, setExistingBusiness] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [imageToCrop, setImageToCrop] = useState(null);
   const [cropModalVisible, setCropModalVisible] = useState(false);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  useEffect(() => {
+    if (id) {
+      loadBusiness();
+    }
+  }, [id]);
 
   const showError = (message) => {
     setErrorMessage(message);
@@ -62,6 +73,49 @@ export default function AddBusinessScreen() {
 
     if (Platform.OS !== 'web') {
       Alert.alert('Success', message);
+    }
+  };
+
+  const getExistingBusinessPhotoUrl = () => {
+    const backendUrl = API_URL.replace('/api', '');
+    return `${backendUrl}/api/businesses/${id}/photo`;
+  };
+
+  const loadBusiness = async () => {
+    try {
+      setLoading(true);
+      setImageError(false);
+
+      const response = await api.get(`/businesses/${id}`);
+      const business = response.data;
+
+      setExistingBusiness(business);
+
+      const coordinates = business?.location?.coordinates || [];
+      const longitude = coordinates.length === 2 ? coordinates[0] : '';
+      const latitude = coordinates.length === 2 ? coordinates[1] : '';
+
+      setForm({
+        name: business.name || '',
+        description: business.description || '',
+        category: business.category || DEFAULT_BUSINESS_CATEGORY,
+        address:
+          business.address === 'Address not provided'
+            ? ''
+            : business.address || '',
+        phone: business.phone || '',
+        latitude: latitude !== '' ? String(latitude) : '',
+        longitude: longitude !== '' ? String(longitude) : '',
+      });
+    } catch (error) {
+      console.log('Load Business Error:', error?.response?.data || error);
+
+      showError(
+        error?.response?.data?.message ||
+          'Could not load business details.'
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -151,11 +205,7 @@ export default function AddBusinessScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-
-        // Web uses our custom crop modal.
-        // Native uses the system crop editor.
         allowsEditing: Platform.OS !== 'web',
-
         aspect: [16, 9],
         quality: 0.9,
         exif: false,
@@ -180,7 +230,7 @@ export default function AddBusinessScreen() {
     }
   };
 
-  const removeSelectedPhoto = () => {
+  const removeSelectedNewPhoto = () => {
     setProfilePhoto(null);
     setImageToCrop(null);
     setCropModalVisible(false);
@@ -209,7 +259,7 @@ export default function AddBusinessScreen() {
         longitude: String(loc.coords.longitude),
       }));
 
-      showSuccess('Current location added successfully.');
+      showSuccess('Current location updated successfully.');
     } catch (error) {
       console.log('Location Error:', error);
       showError('Could not get your current location.');
@@ -218,9 +268,7 @@ export default function AddBusinessScreen() {
     }
   };
 
-  const handleAddBusiness = async () => {
-    console.log('Add Business button pressed');
-
+  const handleUpdateBusiness = async () => {
     setErrorMessage('');
     setSuccessMessage('');
 
@@ -229,7 +277,7 @@ export default function AddBusinessScreen() {
     }
 
     try {
-      setLoading(true);
+      setSaving(true);
 
       const formData = new FormData();
 
@@ -246,32 +294,41 @@ export default function AddBusinessScreen() {
         formData.append('profilePhoto', imageFile);
       }
 
-      const response = await api.post('/businesses', formData, {
+      const response = await api.put(`/businesses/${id}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      console.log('Business created:', response.data);
+      console.log('Business updated:', response.data);
 
-      showSuccess('Business added successfully.');
+      showSuccess('Business updated successfully.');
 
       setTimeout(() => {
         router.replace('/(tabs)/profile');
-      }, 500);
+      }, 700);
     } catch (error) {
-      console.log('Create Business Error:', error?.response?.data || error);
+      console.log('Update Business Error:', error?.response?.data || error);
 
       const message =
         error?.response?.data?.message ||
         error?.message ||
-        'Could not add business. Please try again.';
+        'Could not update business. Please try again.';
 
       showError(message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator color={colors.primary} size="large" />
+        <Text style={styles.loadingText}>Loading business...</Text>
+      </View>
+    );
+  }
 
   return (
     <>
@@ -280,7 +337,7 @@ export default function AddBusinessScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Add Your Business</Text>
+        <Text style={styles.title}>Edit Business Listing</Text>
 
         <TouchableOpacity
           style={styles.photoPicker}
@@ -293,10 +350,17 @@ export default function AddBusinessScreen() {
               style={styles.photoPreview}
               resizeMode="cover"
             />
+          ) : existingBusiness?.hasProfilePhoto && !imageError ? (
+            <Image
+              source={{ uri: getExistingBusinessPhotoUrl() }}
+              style={styles.photoPreview}
+              resizeMode="cover"
+              onError={() => setImageError(true)}
+            />
           ) : (
             <>
               <Text style={styles.photoIcon}>📷</Text>
-              <Text style={styles.photoPickerText}>Add Business Photo</Text>
+              <Text style={styles.photoPickerText}>Change Business Photo</Text>
               <Text style={styles.photoHelperText}>
                 Crop and resize before uploading
               </Text>
@@ -316,13 +380,21 @@ export default function AddBusinessScreen() {
 
             <TouchableOpacity
               style={styles.removePhotoButton}
-              onPress={removeSelectedPhoto}
+              onPress={removeSelectedNewPhoto}
               activeOpacity={0.8}
             >
-              <Text style={styles.removePhotoText}>Remove</Text>
+              <Text style={styles.removePhotoText}>Keep Old Photo</Text>
             </TouchableOpacity>
           </View>
-        ) : null}
+        ) : (
+          <TouchableOpacity
+            style={styles.changeOnlyButton}
+            onPress={pickBusinessPhoto}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.changeOnlyButtonText}>Choose New Photo</Text>
+          </TouchableOpacity>
+        )}
 
         <TextInput
           placeholder="Business Name"
@@ -388,11 +460,11 @@ export default function AddBusinessScreen() {
           {locating ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.buttonText}>Use Current Location</Text>
+            <Text style={styles.buttonText}>Update to Current Location</Text>
           )}
         </TouchableOpacity>
 
-        <Text style={styles.helperText}>Or enter location manually:</Text>
+        <Text style={styles.helperText}>Or edit location manually:</Text>
 
         <TextInput
           placeholder="Latitude"
@@ -419,15 +491,15 @@ export default function AddBusinessScreen() {
         ) : null}
 
         <TouchableOpacity
-          style={[styles.submitButton, loading && styles.disabledButton]}
-          onPress={handleAddBusiness}
-          disabled={loading}
+          style={[styles.submitButton, saving && styles.disabledButton]}
+          onPress={handleUpdateBusiness}
+          disabled={saving}
           activeOpacity={0.8}
         >
-          {loading ? (
+          {saving ? (
             <ActivityIndicator color={colors.white} />
           ) : (
-            <Text style={styles.buttonText}>Add Business</Text>
+            <Text style={styles.buttonText}>Save Changes</Text>
           )}
         </TouchableOpacity>
 
@@ -476,6 +548,18 @@ const styles = StyleSheet.create({
   container: {
     padding: 20,
     paddingBottom: 100,
+  },
+
+  centerContainer: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  loadingText: {
+    marginTop: 10,
+    color: colors.text,
   },
 
   title: {
@@ -527,44 +611,50 @@ const styles = StyleSheet.create({
 
   changePhotoButton: {
     flex: 1,
-    backgroundColor: colors.primaryDark,
-    padding: 13,
-    borderRadius: 16,
+    backgroundColor: colors.primary,
+    padding: 11,
+    borderRadius: 10,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
 
   changePhotoText: {
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: 'bold',
     fontSize: 13,
-    letterSpacing: 0.2,
   },
 
   removePhotoButton: {
-    backgroundColor: colors.white,
-    padding: 13,
-    borderRadius: 16,
+    backgroundColor: '#FFECEC',
+    padding: 11,
+    borderRadius: 10,
     alignItems: 'center',
     paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.muted,
   },
 
   removePhotoText: {
     color: '#D32F2F',
-    fontWeight: '700',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  changeOnlyButton: {
+    backgroundColor: colors.primary,
+    padding: 11,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+
+  changeOnlyButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
     fontSize: 13,
   },
 
   input: {
     borderWidth: 1,
     borderColor: colors.muted,
-    borderRadius: 16,
+    borderRadius: 10,
     padding: 14,
     backgroundColor: colors.white,
     marginBottom: 14,
@@ -590,8 +680,8 @@ const styles = StyleSheet.create({
   },
 
   categoryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -610,20 +700,15 @@ const styles = StyleSheet.create({
 
   categoryTextActive: {
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: 'bold',
   },
 
   locationButton: {
-    backgroundColor: colors.primaryDark,
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: colors.primaryDark || colors.primary,
+    padding: 15,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
   },
 
   helperText: {
@@ -635,7 +720,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFECEC',
     color: '#D32F2F',
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 10,
     marginBottom: 14,
     fontWeight: '600',
   },
@@ -644,7 +729,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     color: '#2E7D32',
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 10,
     marginBottom: 14,
     fontWeight: '600',
   },
@@ -652,25 +737,19 @@ const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: colors.primary,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
   },
 
   disabledButton: {
-    opacity: 0.55,
+    opacity: 0.7,
   },
 
   buttonText: {
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: 'bold',
     fontSize: 16,
-    letterSpacing: 0.2,
   },
 
   cancelButton: {
