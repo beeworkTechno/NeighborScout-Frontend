@@ -190,6 +190,10 @@ export default function ProfileScreen() {
     router.push(`/business/${businessId}`);
   };
 
+  const handleEditBusiness = (businessId) => {
+    router.push(`/edit-business/${businessId}`);
+  };
+
   const formatDate = (dateValue) => {
     if (!dateValue) return 'Not available';
 
@@ -368,15 +372,23 @@ export default function ProfileScreen() {
                       </Text>
                     </View>
 
-                    <TouchableOpacity
-                      style={styles.previewButton}
-                      onPress={() => handlePreviewBusiness(business._id)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.previewButtonText}>
-                        Preview Listing
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={styles.businessActionRow}>
+                      <TouchableOpacity
+                        style={[styles.previewButton, styles.businessActionButton]}
+                        onPress={() => handlePreviewBusiness(business._id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.previewButtonText}>Preview</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[styles.editButton, styles.businessActionButton]}
+                        onPress={() => handleEditBusiness(business._id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.editButtonText}>Edit Listing</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ))
               )}
@@ -698,16 +710,39 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  businessActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+
+  businessActionButton: {
+    flex: 1,
+  },
+
   previewButton: {
+    backgroundColor: '#222',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+
+  previewButtonText: {
+    color: colors.white,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+
+  editButton: {
     backgroundColor: colors.primary,
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
     alignItems: 'center',
-    marginTop: 12,
   },
 
-  previewButtonText: {
+  editButtonText: {
     color: colors.white,
     fontWeight: 'bold',
     fontSize: 14,
