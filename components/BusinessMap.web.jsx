@@ -112,7 +112,11 @@ const getMostPopulatedBusinessCluster = (businesses) => {
   return bestCluster;
 };
 
-export default function BusinessMap({ selectedBusinessFromList }) {
+export default function BusinessMap({
+  selectedBusinessFromList,
+  searchText = "",
+  selectedCategory = "All",
+}) {
   const router = useRouter();
   const iframeRef = useRef(null);
 
@@ -126,6 +130,30 @@ export default function BusinessMap({ selectedBusinessFromList }) {
   useEffect(() => {
     fetchBusinesses();
   }, []);
+
+  const filteredBusinesses = useMemo(() => {
+    const searchValue = searchText.trim().toLowerCase();
+    const categoryValue = selectedCategory.trim().toLowerCase();
+
+    return businesses.filter((business) => {
+      const name = business.name?.toLowerCase() || "";
+      const description = business.description?.toLowerCase() || "";
+      const category = business.category?.toLowerCase() || "";
+      const address = business.address?.toLowerCase() || "";
+
+      const matchesSearch =
+        !searchValue ||
+        name.includes(searchValue) ||
+        description.includes(searchValue) ||
+        category.includes(searchValue) ||
+        address.includes(searchValue);
+
+      const matchesCategory =
+        selectedCategory === "All" || category.includes(categoryValue);
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [businesses, searchText, selectedCategory]);
 
   useEffect(() => {
     const handleMessage = (event) => {
@@ -147,6 +175,10 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       window.removeEventListener("message", handleMessage);
     };
   }, []);
+
+  useEffect(() => {
+    setSelectedBusiness(null);
+  }, [searchText, selectedCategory]);
 
   const fetchBusinesses = async () => {
     try {
@@ -172,7 +204,8 @@ export default function BusinessMap({ selectedBusinessFromList }) {
   };
 
   const mapHtml = useMemo(() => {
-    const mostPopulatedCluster = getMostPopulatedBusinessCluster(businesses);
+    const mostPopulatedCluster =
+      getMostPopulatedBusinessCluster(filteredBusinesses);
 
     const clusterCoordinates = mostPopulatedCluster
       .map((item) => item.coordinate)
@@ -192,7 +225,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           }, 0) / clusterCoordinates.length
         : defaultLongitude;
 
-    const markerData = businesses
+    const markerData = filteredBusinesses
       .map((business) => {
         const coordinate = getBusinessCoordinates(business);
 
@@ -338,6 +371,22 @@ export default function BusinessMap({ selectedBusinessFromList }) {
               border: 4px solid white;
               box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
             }
+
+            .no-results {
+              position: absolute;
+              left: 50%;
+              top: 50%;
+              transform: translate(-50%, -50%);
+              z-index: 9999;
+              background: white;
+              color: #222;
+              padding: 14px 18px;
+              border-radius: 14px;
+              font-size: 15px;
+              font-weight: bold;
+              box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+              text-align: center;
+            }
           </style>
         </head>
 
@@ -347,6 +396,12 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           <button class="location-button" onclick="goToCurrentLocation()">
             📍 Current Location
           </button>
+
+          ${
+            markerData.length === 0
+              ? '<div class="no-results">No businesses found for this filter</div>'
+              : ""
+          }
 
           <script>
             const businesses = ${JSON.stringify(markerData)};
@@ -515,7 +570,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
         </body>
       </html>
     `;
-  }, [businesses]);
+  }, [filteredBusinesses]);
 
   useEffect(() => {
     if (!selectedBusinessFromList || loading) return;

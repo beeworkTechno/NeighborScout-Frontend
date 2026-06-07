@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -173,7 +173,11 @@ const getRegionForBusinesses = (businesses, fallbackLocation) => {
   };
 };
 
-export default function BusinessMap({ selectedBusinessFromList }) {
+export default function BusinessMap({
+  selectedBusinessFromList,
+  searchText = "",
+  selectedCategory = "All",
+}) {
   const router = useRouter();
   const mapRef = useRef(null);
 
@@ -183,9 +187,44 @@ export default function BusinessMap({ selectedBusinessFromList }) {
   const [loading, setLoading] = useState(true);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  const filteredBusinesses = useMemo(() => {
+    const searchValue = searchText.trim().toLowerCase();
+    const categoryValue = selectedCategory.trim().toLowerCase();
+
+    return businesses.filter((business) => {
+      const name = business.name?.toLowerCase() || "";
+      const description = business.description?.toLowerCase() || "";
+      const category = business.category?.toLowerCase() || "";
+      const address = business.address?.toLowerCase() || "";
+
+      const matchesSearch =
+        !searchValue ||
+        name.includes(searchValue) ||
+        description.includes(searchValue) ||
+        category.includes(searchValue) ||
+        address.includes(searchValue);
+
+      const matchesCategory =
+        selectedCategory === "All" || category.includes(categoryValue);
+
+      return matchesSearch && matchesCategory;
+    });
+  }, [businesses, searchText, selectedCategory]);
+
   useEffect(() => {
     loadMapData();
   }, []);
+
+  useEffect(() => {
+    setSelectedBusiness(null);
+
+    if (mapRef.current) {
+      mapRef.current.animateToRegion(
+        getRegionForBusinesses(filteredBusinesses, userLocation),
+        500
+      );
+    }
+  }, [searchText, selectedCategory, filteredBusinesses.length]);
 
   useEffect(() => {
     if (!selectedBusinessFromList || !mapRef.current) return;
@@ -302,7 +341,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={getRegionForBusinesses(businesses, userLocation)}
+        initialRegion={getRegionForBusinesses(filteredBusinesses, userLocation)}
         showsUserLocation
         onPress={closeBusinessCard}
       >
@@ -316,7 +355,7 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           />
         )}
 
-        {businesses.map((business) => {
+        {filteredBusinesses.map((business) => {
           const coordinate = getBusinessCoordinates(business);
 
           if (!coordinate) return null;
@@ -379,6 +418,14 @@ export default function BusinessMap({ selectedBusinessFromList }) {
           </>
         )}
       </TouchableOpacity>
+
+      {filteredBusinesses.length === 0 && (
+        <View style={styles.noResultsBox}>
+          <Text style={styles.noResultsText}>
+            No businesses found for this filter
+          </Text>
+        </View>
+      )}
 
       {selectedBusiness && (
         <TouchableOpacity
@@ -474,6 +521,31 @@ const styles = StyleSheet.create({
     marginLeft: 6,
     color: "#222",
     fontWeight: "bold",
+  },
+
+  noResultsBox: {
+    position: "absolute",
+    top: "45%",
+    left: 20,
+    right: 20,
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+  },
+
+  noResultsText: {
+    color: "#222",
+    fontWeight: "bold",
+    textAlign: "center",
   },
 
   iconMarker: {
