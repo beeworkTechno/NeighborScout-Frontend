@@ -20,6 +20,7 @@ import { useRouter } from "expo-router";
 
 import BusinessMap from "../../components/BusinessMap";
 import api from "../../src/services/api";
+import colors from "../../src/styles/colors";
 import {
   getToken,
   getRole,
@@ -957,20 +958,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "#D32F2F",
     margin: 20,
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.16,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   signOutButtonText: {
-    color: "#fff",
+    color: colors.white,
     marginLeft: 8,
-    fontWeight: "bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   businessCard: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
     padding: 15,
     marginBottom: 14,
     borderRadius: 14,
@@ -1012,50 +1019,68 @@ const styles = StyleSheet.create({
 
   viewMapButton: {
     flexDirection: "row",
-    backgroundColor: "#1976D2",
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    padding: 14,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   viewMapButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
     marginLeft: 6,
+    letterSpacing: 0.2,
   },
 
   viewPageButton: {
     flexDirection: "row",
     backgroundColor: "#222",
-    padding: 12,
-    borderRadius: 10,
+    padding: 14,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   viewPageButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
     marginLeft: 6,
+    letterSpacing: 0.2,
   },
 
   reviewButton: {
     flexDirection: "row",
-    backgroundColor: "#F9B208",
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 14,
+    borderRadius: 16,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   reviewButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
     marginLeft: 6,
+    letterSpacing: 0.2,
   },
 
   emptyText: {
@@ -1090,16 +1115,23 @@ const styles = StyleSheet.create({
   },
 
   actionButton: {
-    backgroundColor: "#F9B208",
-    padding: 13,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 14,
+    borderRadius: 16,
     marginTop: 14,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   actionText: {
-    color: "#fff",
+    color: colors.white,
     textAlign: "center",
-    fontWeight: "bold",
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   modalOverlay: {
@@ -1166,19 +1198,25 @@ const styles = StyleSheet.create({
   },
 
   submitReviewButton: {
-    backgroundColor: "#F9B208",
-    padding: 13,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 14,
+    borderRadius: 16,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.55,
   },
 
   submitReviewText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   infoBox: {
@@ -1236,28 +1274,40 @@ const styles = StyleSheet.create({
 
   editReviewButton: {
     flex: 1,
-    backgroundColor: "#F9B208",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    padding: 12,
+    borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   editReviewText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   deleteReviewButton: {
     flex: 1,
     backgroundColor: "#D32F2F",
-    padding: 10,
-    borderRadius: 8,
+    padding: 12,
+    borderRadius: 14,
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   deleteReviewText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white,
+    fontWeight: "700",
+    letterSpacing: 0.2,
   },
 
   cancelEditButton: {

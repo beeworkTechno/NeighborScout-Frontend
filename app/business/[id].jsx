@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import api, { API_URL } from '../../src/services/api';
+import colors from '../../src/styles/colors';
 
 export default function BusinessDetailPage() {
   const router = useRouter();
@@ -422,14 +423,20 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    backgroundColor: '#F9B208',
-    paddingVertical: 12,
+    backgroundColor: colors.primaryDark,
+    paddingVertical: 14,
     paddingHorizontal: 22,
-    borderRadius: 10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   backButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: colors.white,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });
