@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState } from 'react';
 
 import {
   View,
@@ -7,30 +7,15 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-} from "react-native";
+} from 'react-native';
 
-import BusinessMap from "../../components/BusinessMap";
+import BusinessMap from '../../components/BusinessMap';
 
-const categories = [
-  "All",
-  "Restaurant",
-  "Cafe",
-  "Grocery",
-  "Pharmacy",
-  "Hotel",
-  "Salon",
-  "Repair",
-  "Furniture",
-  "School",
-  "Gym",
-  "Hospital",
-  "Bank",
-  "Shop",
-];
+import { BUSINESS_CATEGORIES_WITH_ALL } from '../../src/constants/businessCategories';
 
 export default function SearchScreen() {
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
 
   return (
     <View style={styles.container}>
@@ -50,7 +35,7 @@ export default function SearchScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryScroll}
         >
-          {categories.map((category) => {
+          {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
             const isActive = selectedCategory === category;
 
             return (
@@ -77,15 +62,12 @@ export default function SearchScreen() {
 
         <Text style={styles.filterInfo}>
           Filter: {selectedCategory}
-          {search.trim() ? ` • Search: ${search.trim()}` : ""}
+          {search.trim() ? ` • Search: ${search.trim()}` : ''}
         </Text>
       </View>
 
       <View style={styles.mapContainer}>
-        <BusinessMap
-          searchText={search}
-          selectedCategory={selectedCategory}
-        />
+        <BusinessMap searchText={search} selectedCategory={selectedCategory} />
       </View>
     </View>
   );
@@ -94,27 +76,27 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
 
   searchContainer: {
     padding: 15,
-    backgroundColor: "#fff",
+    backgroundColor: '#fff',
   },
 
   heading: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     marginBottom: 10,
   },
 
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
     borderRadius: 12,
     paddingHorizontal: 15,
     paddingVertical: 12,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: '#f5f5f5',
     marginBottom: 12,
   },
 
@@ -127,29 +109,29 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 14,
     borderRadius: 20,
-    backgroundColor: "#f1f1f1",
+    backgroundColor: '#f1f1f1',
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: '#ddd',
   },
 
   categoryButtonActive: {
-    backgroundColor: "#F9B208",
-    borderColor: "#F9B208",
+    backgroundColor: '#F9B208',
+    borderColor: '#F9B208',
   },
 
   categoryButtonText: {
-    color: "#333",
-    fontWeight: "600",
+    color: '#333',
+    fontWeight: '600',
   },
 
   categoryButtonTextActive: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: '#fff',
+    fontWeight: 'bold',
   },
 
   filterInfo: {
     marginTop: 8,
-    color: "#666",
+    color: '#666',
     fontSize: 13,
   },
 

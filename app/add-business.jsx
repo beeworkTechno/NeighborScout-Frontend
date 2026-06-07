@@ -20,17 +20,10 @@ import api from '../src/services/api';
 import colors from '../src/styles/colors';
 import ImageCropModal from '../components/ImageCropModal';
 
-const categories = [
-  'Restaurant',
-  'Grocery',
-  'Cafe',
-  'Pharmacy',
-  'Hotel',
-  'Salon',
-  'Repair',
-  'Furniture',
-  'Other',
-];
+import {
+  BUSINESS_CATEGORIES,
+  DEFAULT_BUSINESS_CATEGORY,
+} from '../src/constants/businessCategories';
 
 export default function AddBusinessScreen() {
   const router = useRouter();
@@ -38,7 +31,7 @@ export default function AddBusinessScreen() {
   const [form, setForm] = useState({
     name: '',
     description: '',
-    category: 'Restaurant',
+    category: DEFAULT_BUSINESS_CATEGORY,
     address: '',
     phone: '',
     latitude: '',
@@ -349,7 +342,7 @@ export default function AddBusinessScreen() {
         <Text style={styles.label}>Category</Text>
 
         <View style={styles.categoryContainer}>
-          {categories.map((category) => (
+          {BUSINESS_CATEGORIES.map((category) => (
             <TouchableOpacity
               key={category}
               style={[

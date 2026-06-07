@@ -28,6 +28,8 @@ import {
 } from "../../utils/tokenUtils";
 import { getUserProfilePhotoUrl } from "../../utils/userPhoto";
 
+import { BUSINESS_CATEGORIES_WITH_ALL } from "../../src/constants/businessCategories";
+
 export default function HomeScreen() {
   const router = useRouter();
 
@@ -59,23 +61,6 @@ export default function HomeScreen() {
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
-
-  const categories = [
-    "All",
-    "Restaurant",
-    "Cafe",
-    "Grocery",
-    "Pharmacy",
-    "Hotel",
-    "Salon",
-    "Repair",
-    "Furniture",
-    "School",
-    "Gym",
-    "Hospital",
-    "Bank",
-    "Shop",
-  ];
 
   useEffect(() => {
     loadHomeData();
@@ -555,7 +540,7 @@ export default function HomeScreen() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryFilterContainer}
         >
-          {categories.map((category) => {
+          {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
             const isActive = selectedCategory === category;
 
             return (
