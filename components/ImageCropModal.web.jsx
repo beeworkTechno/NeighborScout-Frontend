@@ -158,9 +158,9 @@ const styles = {
   cancelButton: {
     flex: 1,
     border: 'none',
-    borderRadius: 10,
-    padding: 13,
-    backgroundColor: '#eee',
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: '#f5f5f5',
     color: '#222',
     fontWeight: 700,
     cursor: 'pointer',
@@ -169,11 +169,12 @@ const styles = {
   saveButton: {
     flex: 1,
     border: 'none',
-    borderRadius: 10,
-    padding: 13,
-    backgroundColor: '#F9B208',
+    borderRadius: 16,
+    padding: 14,
+    backgroundColor: '#FFB300',
     color: '#fff',
     fontWeight: 700,
     cursor: 'pointer',
+    boxShadow: '0 12px 24px rgba(0,0,0,0.12)',
   },
 };

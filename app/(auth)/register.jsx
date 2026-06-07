@@ -423,12 +423,17 @@ const styles = StyleSheet.create({
   },
 
   registerButton: {
-    backgroundColor: colors.primary,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   enterLoginButton: {
@@ -441,15 +446,20 @@ const styles = StyleSheet.create({
   },
 
   googleButton: {
-    backgroundColor: colors.primaryDark,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.55,
   },
 
   roleContainer: {
@@ -460,9 +470,9 @@ const styles = StyleSheet.create({
   },
 
   roleButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.muted,
     backgroundColor: colors.white,
@@ -470,6 +480,7 @@ const styles = StyleSheet.create({
 
   roleButtonActive: {
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
 
   roleText: {
@@ -478,13 +489,14 @@ const styles = StyleSheet.create({
 
   roleTextActive: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 
   buttonText: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.2,
   },
 
   link: {

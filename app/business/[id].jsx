@@ -15,6 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import api, { API_URL } from '../../src/services/api';
+import colors from '../../src/styles/colors';
+import ShareButton from '../../components/ShareButton';
 
 export default function BusinessDetailPage() {
   const router = useRouter();
@@ -212,6 +214,15 @@ export default function BusinessDetailPage() {
           <View style={styles.urlBox}>
             <Text style={styles.urlText}>{getBusinessUrl()}</Text>
           </View>
+
+          <ShareButton
+            businessId={id}
+            businessName={business.name}
+            businessAddress={business.address || 'this business'}
+            businessLatitude={business?.location?.coordinates?.[1]}
+            businessLongitude={business?.location?.coordinates?.[0]}
+            style={styles.shareButton}
+          />
         </View>
 
         <View style={styles.section}>
@@ -422,14 +433,24 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    backgroundColor: '#F9B208',
-    paddingVertical: 12,
+    backgroundColor: colors.primaryDark,
+    paddingVertical: 14,
     paddingHorizontal: 22,
-    borderRadius: 10,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
+  },
+
+  shareButton: {
+    marginTop: 18,
   },
 
   backButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    color: colors.white,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 });

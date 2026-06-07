@@ -527,36 +527,44 @@ const styles = StyleSheet.create({
 
   changePhotoButton: {
     flex: 1,
-    backgroundColor: colors.primary,
-    padding: 11,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    padding: 13,
+    borderRadius: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
 
   changePhotoText: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 13,
+    letterSpacing: 0.2,
   },
 
   removePhotoButton: {
-    backgroundColor: '#FFECEC',
-    padding: 11,
-    borderRadius: 10,
+    backgroundColor: colors.white,
+    padding: 13,
+    borderRadius: 16,
     alignItems: 'center',
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: colors.muted,
   },
 
   removePhotoText: {
     color: '#D32F2F',
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 13,
   },
 
   input: {
     borderWidth: 1,
     borderColor: colors.muted,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 14,
     backgroundColor: colors.white,
     marginBottom: 14,
@@ -582,8 +590,8 @@ const styles = StyleSheet.create({
   },
 
   categoryButton: {
-    paddingVertical: 9,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     borderRadius: 20,
     backgroundColor: colors.white,
     borderWidth: 1,
@@ -602,15 +610,20 @@ const styles = StyleSheet.create({
 
   categoryTextActive: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
 
   locationButton: {
-    backgroundColor: colors.primaryDark || colors.primary,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
 
   helperText: {
@@ -622,7 +635,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFECEC',
     color: '#D32F2F',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 14,
     marginBottom: 14,
     fontWeight: '600',
   },
@@ -631,7 +644,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9',
     color: '#2E7D32',
     padding: 12,
-    borderRadius: 10,
+    borderRadius: 14,
     marginBottom: 14,
     fontWeight: '600',
   },
@@ -639,19 +652,25 @@ const styles = StyleSheet.create({
   submitButton: {
     backgroundColor: colors.primary,
     padding: 16,
-    borderRadius: 10,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.55,
   },
 
   buttonText: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.2,
   },
 
   cancelButton: {

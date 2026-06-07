@@ -398,30 +398,41 @@ const styles = StyleSheet.create({
   },
 
   loginButton: {
-    backgroundColor: colors.primary,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 8,
     marginBottom: 15,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   googleButton: {
-    backgroundColor: colors.primaryDark,
-    padding: 15,
-    borderRadius: 10,
+    backgroundColor: colors.primary,
+    padding: 16,
+    borderRadius: 16,
     alignItems: 'center',
     marginBottom: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.55,
   },
 
   buttonText: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.2,
   },
 
   registerText: {

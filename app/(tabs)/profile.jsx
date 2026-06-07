@@ -735,17 +735,24 @@ const styles = StyleSheet.create({
   },
 
   smallButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: 7,
-    paddingHorizontal: 12,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     marginBottom: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   smallButtonText: {
     color: colors.white,
     fontSize: 13,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
 
   businessItem: {
@@ -882,14 +889,20 @@ const styles = StyleSheet.create({
   logoutButton: {
     backgroundColor: '#D32F2F',
     padding: 15,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     marginTop: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
 
   logoutText: {
     color: colors.white,
-    fontWeight: 'bold',
+    fontWeight: '700',
     fontSize: 16,
+    letterSpacing: 0.2,
   },
 });

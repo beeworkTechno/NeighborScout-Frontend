@@ -351,16 +351,19 @@ export default function BusinessMap({
               background: white;
               color: #222;
               border: none;
-              padding: 11px 14px;
-              border-radius: 30px;
+              padding: 12px 16px;
+              border-radius: 28px;
               font-size: 14px;
               font-weight: bold;
               cursor: pointer;
-              box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+              box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+              transition: transform 150ms ease, background 150ms ease, box-shadow 150ms ease;
             }
 
             .location-button:hover {
-              background: #f5f5f5;
+              background: #f8f8f8;
+              transform: translateY(-1px);
+              box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
             }
 
             .user-location-marker {
@@ -756,15 +759,17 @@ const styles = StyleSheet.create({
 
   openPageHint: {
     marginTop: 12,
-    backgroundColor: "#222",
-    paddingVertical: 10,
-    borderRadius: 10,
+    backgroundColor: colors.primaryDark || "#222",
+    paddingVertical: 12,
+    borderRadius: 18,
     alignItems: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
   },
 
   openPageHintText: {
-    color: "#fff",
-    fontWeight: "bold",
+    color: colors.white || "#fff",
+    fontWeight: "700",
     fontSize: 13,
+    letterSpacing: 0.2,
   },
 });
