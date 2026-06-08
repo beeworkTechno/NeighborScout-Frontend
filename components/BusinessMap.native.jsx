@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
+import Svg, { Circle, Text as SvgText } from "react-native-svg";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -187,6 +188,7 @@ export default function BusinessMap({
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [trackMarkerChanges, setTrackMarkerChanges] = useState(true);
 
   const filteredBusinesses = useMemo(() => {
     const searchValue = searchText.trim().toLowerCase();
@@ -251,6 +253,16 @@ export default function BusinessMap({
       700
     );
   }, [selectedBusinessFromList]);
+
+  useEffect(() => {
+    setTrackMarkerChanges(true);
+
+    const timer = setTimeout(() => {
+      setTrackMarkerChanges(false);
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [filteredBusinesses.length, searchText, selectedCategory]);
 
   const loadMapData = async () => {
     try {
@@ -368,7 +380,9 @@ export default function BusinessMap({
             <Marker
               key={business._id}
               coordinate={coordinate}
-              tracksViewChanges={Platform.OS === "android"}
+              tracksViewChanges={
+                Platform.OS === "android" ? trackMarkerChanges : false
+              }
               anchor={{ x: 0.5, y: 0.5 }}
               centerOffset={{ x: 0, y: 0 }}
               zIndex={10}
@@ -382,17 +396,25 @@ export default function BusinessMap({
               }}
             >
               <View style={styles.markerWrapper} collapsable={false}>
-                <View
-                  style={[
-                    styles.iconMarker,
-                    {
-                      borderColor: markerColor,
-                    },
-                  ]}
-                  collapsable={false}
-                >
-                  <Text style={styles.iconText}>{icon}</Text>
-                </View>
+                <Svg width={80} height={80} viewBox="0 0 80 80">
+                  <Circle
+                    cx="40"
+                    cy="40"
+                    r="28"
+                    fill="#ffffff"
+                    stroke={markerColor}
+                    strokeWidth="5"
+                  />
+
+                  <SvgText
+                    x="40"
+                    y="50"
+                    fontSize="26"
+                    textAnchor="middle"
+                  >
+                    {icon}
+                  </SvgText>
+                </Svg>
               </View>
             </Marker>
           );
@@ -547,34 +569,10 @@ const styles = StyleSheet.create({
   },
 
   markerWrapper: {
-    width: 72,
-    height: 72,
+    width: 80,
+    height: 80,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "visible",
-  },
-
-  iconMarker: {
-    backgroundColor: "#fff",
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    borderWidth: 4,
-    justifyContent: "center",
-    alignItems: "center",
-    elevation: 8,
-    overflow: "hidden",
-  },
-
-  markerPointer: {
-    display: "none",
-  },
-
-  iconText: {
-    fontSize: 25,
-    lineHeight: 30,
-    textAlign: "center",
-    includeFontPadding: false,
   },
 
   businessCard: {
