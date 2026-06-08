@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getToken } from '../../utils/tokenUtils';
 
 export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5001/api';
+  process.env.EXPO_PUBLIC_API_URL || 'https://neighborscout-backend.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
