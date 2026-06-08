@@ -368,7 +368,10 @@ export default function BusinessMap({
             <Marker
               key={business._id}
               coordinate={coordinate}
-              tracksViewChanges={false}
+              tracksViewChanges={Platform.OS === "android"}
+              anchor={{ x: 0.5, y: 0.5 }}
+              centerOffset={{ x: 0, y: 0 }}
+              zIndex={10}
               onPress={(event) => {
                 event.stopPropagation();
 
@@ -378,25 +381,19 @@ export default function BusinessMap({
                 });
               }}
             >
-              <View
-                style={[
-                  styles.iconMarker,
-                  {
-                    borderColor: markerColor,
-                  },
-                ]}
-              >
-                <Text style={styles.iconText}>{icon}</Text>
+              <View style={styles.markerWrapper} collapsable={false}>
+                <View
+                  style={[
+                    styles.iconMarker,
+                    {
+                      borderColor: markerColor,
+                    },
+                  ]}
+                  collapsable={false}
+                >
+                  <Text style={styles.iconText}>{icon}</Text>
+                </View>
               </View>
-
-              <View
-                style={[
-                  styles.markerPointer,
-                  {
-                    borderTopColor: markerColor,
-                  },
-                ]}
-              />
             </Marker>
           );
         })}
@@ -549,38 +546,35 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  markerWrapper: {
+    width: 72,
+    height: 72,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "visible",
+  },
+
   iconMarker: {
-    backgroundColor: "white",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 3,
+    backgroundColor: "#fff",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 4,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    elevation: 8,
+    overflow: "hidden",
   },
 
   markerPointer: {
-    alignSelf: "center",
-    width: 0,
-    height: 0,
-    borderLeftWidth: 7,
-    borderRightWidth: 7,
-    borderTopWidth: 10,
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    marginTop: -2,
+    display: "none",
   },
 
   iconText: {
-    fontSize: 23,
+    fontSize: 25,
+    lineHeight: 30,
+    textAlign: "center",
+    includeFontPadding: false,
   },
 
   businessCard: {
