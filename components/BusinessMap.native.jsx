@@ -188,7 +188,6 @@ export default function BusinessMap({
   const [userLocation, setUserLocation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [trackMarkerChanges, setTrackMarkerChanges] = useState(true);
 
   const filteredBusinesses = useMemo(() => {
     const searchValue = searchText.trim().toLowerCase();
@@ -253,16 +252,6 @@ export default function BusinessMap({
       700
     );
   }, [selectedBusinessFromList]);
-
-  useEffect(() => {
-    setTrackMarkerChanges(true);
-
-    const timer = setTimeout(() => {
-      setTrackMarkerChanges(false);
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [filteredBusinesses.length, searchText, selectedCategory]);
 
   const loadMapData = async () => {
     try {
@@ -378,11 +367,9 @@ export default function BusinessMap({
 
           return (
             <Marker
-              key={business._id}
+              key={`${business._id}-${business.category}`}
               coordinate={coordinate}
-              tracksViewChanges={
-                Platform.OS === "android" ? trackMarkerChanges : false
-              }
+              tracksViewChanges={Platform.OS === "android" ? true : false}
               anchor={{ x: 0.5, y: 0.5 }}
               centerOffset={{ x: 0, y: 0 }}
               zIndex={10}
@@ -395,21 +382,21 @@ export default function BusinessMap({
                 });
               }}
             >
-              <View style={styles.markerWrapper} collapsable={false}>
-                <Svg width={80} height={80} viewBox="0 0 80 80">
+              <View style={styles.markerOuterWrapper} collapsable={false}>
+                <Svg width={90} height={90} viewBox="0 0 90 90">
                   <Circle
-                    cx="40"
-                    cy="40"
-                    r="28"
+                    cx="45"
+                    cy="45"
+                    r="32"
                     fill="#ffffff"
                     stroke={markerColor}
-                    strokeWidth="5"
+                    strokeWidth="6"
                   />
 
                   <SvgText
-                    x="40"
-                    y="50"
-                    fontSize="26"
+                    x="45"
+                    y="56"
+                    fontSize="28"
                     textAnchor="middle"
                   >
                     {icon}
@@ -568,11 +555,12 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  markerWrapper: {
-    width: 80,
-    height: 80,
+  markerOuterWrapper: {
+    width: 90,
+    height: 90,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "transparent",
   },
 
   businessCard: {
