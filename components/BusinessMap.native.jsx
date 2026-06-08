@@ -6,9 +6,10 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Platform,
 } from "react-native";
 
-import MapView, { Marker, UrlTile } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -341,12 +342,12 @@ export default function BusinessMap({
       <MapView
         ref={mapRef}
         style={styles.map}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={getRegionForBusinesses(filteredBusinesses, userLocation)}
         showsUserLocation
+        showsMyLocationButton={false}
         onPress={closeBusinessCard}
       >
-        <UrlTile urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
         {userLocation && (
           <Marker
             coordinate={userLocation}
