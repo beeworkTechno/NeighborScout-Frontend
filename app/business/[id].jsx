@@ -26,6 +26,7 @@ export default function BusinessDetailPage() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
+  const [reactionLoadingId, setReactionLoadingId] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -41,8 +42,7 @@ export default function BusinessDetailPage() {
       const businessResponse = await api.get(`/businesses/${id}`);
       setBusiness(businessResponse.data);
 
-      const reviewResponse = await api.get(`/reviews/${id}`);
-      setReviews(reviewResponse.data || []);
+      await loadBusinessReviews();
     } catch (error) {
       console.log('Business Detail Error:', error?.response?.data || error);
 
@@ -52,6 +52,48 @@ export default function BusinessDetailPage() {
       );
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBusinessReviews = async () => {
+    try {
+      const reviewResponse = await api.get(`/reviews/${id}`);
+      setReviews(reviewResponse.data || []);
+    } catch (error) {
+      console.log('Load Business Reviews Error:', error?.response?.data || error);
+      setReviews([]);
+    }
+  };
+
+  const reactToReview = async (review, reaction) => {
+    if (!review.canReact) {
+      Alert.alert(
+        'Not allowed',
+        'You cannot react to your own review, or you may need to log in as a personal user.'
+      );
+      return;
+    }
+
+    try {
+      setReactionLoadingId(review._id);
+
+      const nextReaction = review.myReaction === reaction ? 'none' : reaction;
+
+      await api.put(`/reviews/${review._id}/reaction`, {
+        reaction: nextReaction,
+      });
+
+      await loadBusinessReviews();
+    } catch (error) {
+      console.log('React To Review Error:', error?.response?.data || error);
+
+      Alert.alert(
+        'Reaction Error',
+        error?.response?.data?.message ||
+          'Could not update your reaction. Please try again.'
+      );
+    } finally {
+      setReactionLoadingId(null);
     }
   };
 
@@ -100,8 +142,6 @@ export default function BusinessDetailPage() {
     return `${backendUrl}/api/businesses/${id}/photo`;
   };
 
-  const shouldShowBusinessImage = business?.hasProfilePhoto && !imageError;
-
   const getAbsoluteReviewImageUrl = (imageUrl) => {
     if (!imageUrl) return '';
 
@@ -111,6 +151,104 @@ export default function BusinessDetailPage() {
 
     const backendUrl = API_URL.replace('/api', '');
     return `${backendUrl}${imageUrl}`;
+  };
+
+  const shouldShowBusinessImage = business?.hasProfilePhoto && !imageError;
+
+  const renderReviewImages = (review) => {
+    if (!review.imageUrls || review.imageUrls.length === 0) {
+      return null;
+    }
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.reviewImageRow}
+      >
+        {review.imageUrls.map((imageUrl, imageIndex) => (
+          <Image
+            key={`${review._id}-${imageIndex}`}
+            source={{ uri: getAbsoluteReviewImageUrl(imageUrl) }}
+            style={styles.reviewImage}
+          />
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderReviewReactions = (review) => {
+    const isLoading = reactionLoadingId === review._id;
+
+    return (
+      <View style={styles.reviewReactionRow}>
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === 'like' && styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, 'like')}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === 'like'
+                ? 'thumbs-up'
+                : 'thumbs-up-outline'
+            }
+            size={16}
+            color={review.myReaction === 'like' ? '#fff' : '#222'}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === 'like' && styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.likeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === 'dislike' &&
+              styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, 'dislike')}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === 'dislike'
+                ? 'thumbs-down'
+                : 'thumbs-down-outline'
+            }
+            size={16}
+            color={review.myReaction === 'dislike' ? '#fff' : '#222'}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === 'dislike' &&
+                styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.dislikeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        {isLoading && <ActivityIndicator size="small" color="#F9B208" />}
+      </View>
+    );
   };
 
   if (loading) {
@@ -258,21 +396,9 @@ export default function BusinessDetailPage() {
                   {review.comment || 'No comment provided.'}
                 </Text>
 
-                {review.imageUrls?.length > 0 && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.reviewImageRow}
-                  >
-                    {review.imageUrls.map((imageUrl, imageIndex) => (
-                      <Image
-                        key={`${review._id}-${imageIndex}`}
-                        source={{ uri: getAbsoluteReviewImageUrl(imageUrl) }}
-                        style={styles.reviewImage}
-                      />
-                    ))}
-                  </ScrollView>
-                )}
+                {renderReviewImages(review)}
+
+                {renderReviewReactions(review)}
               </View>
             ))
           )}
@@ -464,6 +590,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 10,
     backgroundColor: '#eee',
+  },
+
+  reviewReactionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+  },
+
+  reviewReactionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+
+  reviewReactionButtonActive: {
+    backgroundColor: '#F9B208',
+    borderColor: '#F9B208',
+  },
+
+  reviewReactionButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  reviewReactionText: {
+    color: '#222',
+    fontWeight: 'bold',
+  },
+
+  reviewReactionTextActive: {
+    color: '#fff',
   },
 
   emptyText: {
