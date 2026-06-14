@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +28,7 @@ export default function BusinessDetailPage() {
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
   const [reactionLoadingId, setReactionLoadingId] = useState(null);
+  const [reportLoadingId, setReportLoadingId] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -95,6 +97,74 @@ export default function BusinessDetailPage() {
     } finally {
       setReactionLoadingId(null);
     }
+  };
+
+  const reportReview = async (review) => {
+    if (!review.canReport) {
+      Alert.alert(
+        'Not allowed',
+        review.reportedByMe
+          ? 'You have already reported this review.'
+          : 'You can only report reviews posted by other personal users.'
+      );
+      return;
+    }
+
+    const performReport = async () => {
+      try {
+        setReportLoadingId(review._id);
+
+        await api.post(`/reviews/${review._id}/report`, {
+          reason: 'inappropriate',
+          details: '',
+        });
+
+        await loadBusinessReviews();
+
+        Alert.alert(
+          'Reported',
+          'Review reported successfully. A super admin will verify it.'
+        );
+      } catch (error) {
+        console.log('Report Review Error:', error?.response?.data || error);
+
+        Alert.alert(
+          'Report Error',
+          error?.response?.data?.message ||
+            'Could not report this review. Please try again.'
+        );
+      } finally {
+        setReportLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(
+        'Report this review for super admin verification?'
+      );
+
+      if (confirmed) {
+        await performReport();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      'Report Review',
+      'Report this review for super admin verification?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Report',
+          style: 'destructive',
+          onPress: performReport,
+        },
+      ]
+    );
   };
 
   const getCategoryIcon = (category = '') => {
@@ -251,6 +321,46 @@ export default function BusinessDetailPage() {
     );
   };
 
+  const renderReportButton = (review) => {
+    if (!review.canReport && !review.reportedByMe) {
+      return null;
+    }
+
+    const isLoading = reportLoadingId === review._id;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.reportReviewButton,
+          review.reportedByMe && styles.reportReviewButtonDisabled,
+          isLoading && styles.reportReviewButtonDisabled,
+        ]}
+        onPress={() => reportReview(review)}
+        disabled={review.reportedByMe || isLoading}
+        activeOpacity={0.8}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#D32F2F" />
+        ) : (
+          <Ionicons
+            name="flag-outline"
+            size={15}
+            color={review.reportedByMe ? 'gray' : '#D32F2F'}
+          />
+        )}
+
+        <Text
+          style={[
+            styles.reportReviewText,
+            review.reportedByMe && styles.reportReviewTextDisabled,
+          ]}
+        >
+          {review.reportedByMe ? 'Reported' : 'Report Review'}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -399,6 +509,8 @@ export default function BusinessDetailPage() {
                 {renderReviewImages(review)}
 
                 {renderReviewReactions(review)}
+
+                {renderReportButton(review)}
               </View>
             ))
           )}
@@ -627,6 +739,35 @@ const styles = StyleSheet.create({
 
   reviewReactionTextActive: {
     color: '#fff',
+  },
+
+  reportReviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: '#FFECEC',
+    borderWidth: 1,
+    borderColor: '#FFD0D0',
+  },
+
+  reportReviewButtonDisabled: {
+    backgroundColor: '#eee',
+    borderColor: '#ddd',
+  },
+
+  reportReviewText: {
+    color: '#D32F2F',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+
+  reportReviewTextDisabled: {
+    color: 'gray',
   },
 
   emptyText: {

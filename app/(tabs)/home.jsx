@@ -71,6 +71,7 @@ export default function HomeScreen() {
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
   const [reactionLoadingId, setReactionLoadingId] = useState(null);
+  const [reportLoadingId, setReportLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
 
@@ -556,6 +557,79 @@ export default function HomeScreen() {
     }
   };
 
+  const reportReview = async (review) => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (!review.canReport) {
+      Alert.alert(
+        "Not allowed",
+        review.reportedByMe
+          ? "You have already reported this review."
+          : "You can only report reviews posted by other personal users."
+      );
+      return;
+    }
+
+    const performReport = async () => {
+      try {
+        setReportLoadingId(review._id);
+
+        await api.post(`/reviews/${review._id}/report`, {
+          reason: "inappropriate",
+          details: "",
+        });
+
+        await fetchReviewsForBusiness(selectedBusiness._id);
+
+        Alert.alert(
+          "Reported",
+          "Review reported successfully. A super admin will verify it."
+        );
+      } catch (error) {
+        console.log("Report Review Error:", error?.response?.data || error);
+
+        Alert.alert(
+          "Report Error",
+          error?.response?.data?.message ||
+            "Could not report this review. Please try again."
+        );
+      } finally {
+        setReportLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Report this review for super admin verification?"
+      );
+
+      if (confirmed) {
+        await performReport();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      "Report Review",
+      "Report this review for super admin verification?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Report",
+          style: "destructive",
+          onPress: performReport,
+        },
+      ]
+    );
+  };
+
   const getCategoryIcon = (category = "") => {
     const value = category.toLowerCase();
 
@@ -954,7 +1028,8 @@ export default function HomeScreen() {
           style={[
             styles.reviewReactionButton,
             review.myReaction === "like" && styles.reviewReactionButtonActive,
-            (!review.canReact || isLoading) && styles.reviewReactionButtonDisabled,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
           ]}
           onPress={() => reactToReview(review, "like")}
           disabled={!review.canReact || isLoading}
@@ -985,7 +1060,8 @@ export default function HomeScreen() {
             styles.reviewReactionButton,
             review.myReaction === "dislike" &&
               styles.reviewReactionButtonActive,
-            (!review.canReact || isLoading) && styles.reviewReactionButtonDisabled,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
           ]}
           onPress={() => reactToReview(review, "dislike")}
           disabled={!review.canReact || isLoading}
@@ -1014,6 +1090,46 @@ export default function HomeScreen() {
 
         {isLoading && <ActivityIndicator size="small" color="#F9B208" />}
       </View>
+    );
+  };
+
+  const renderReportButton = (review) => {
+    if (!review.canReport && !review.reportedByMe) {
+      return null;
+    }
+
+    const isLoading = reportLoadingId === review._id;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.reportReviewButton,
+          review.reportedByMe && styles.reportReviewButtonDisabled,
+          isLoading && styles.reportReviewButtonDisabled,
+        ]}
+        onPress={() => reportReview(review)}
+        disabled={review.reportedByMe || isLoading}
+        activeOpacity={0.8}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#D32F2F" />
+        ) : (
+          <Ionicons
+            name="flag-outline"
+            size={15}
+            color={review.reportedByMe ? "gray" : "#D32F2F"}
+          />
+        )}
+
+        <Text
+          style={[
+            styles.reportReviewText,
+            review.reportedByMe && styles.reportReviewTextDisabled,
+          ]}
+        >
+          {review.reportedByMe ? "Reported" : "Report Review"}
+        </Text>
+      </TouchableOpacity>
     );
   };
 
@@ -1255,7 +1371,7 @@ export default function HomeScreen() {
               <View style={styles.infoBox}>
                 <Text style={styles.infoText}>
                   Business accounts can view reviews but cannot create, edit,
-                  delete, like, or dislike reviews.
+                  delete, like, dislike, or report reviews.
                 </Text>
               </View>
             )}
@@ -1389,6 +1505,8 @@ export default function HomeScreen() {
                       {renderReviewImages(review)}
 
                       {renderReviewReactions(review)}
+
+                      {renderReportButton(review)}
 
                       {review.canEdit && review.canDelete && !isBusinessUser && (
                         <View style={styles.reviewActionRow}>
@@ -2049,6 +2167,35 @@ const styles = StyleSheet.create({
 
   reviewReactionTextActive: {
     color: "#fff",
+  },
+
+  reportReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "#FFECEC",
+    borderWidth: 1,
+    borderColor: "#FFD0D0",
+  },
+
+  reportReviewButtonDisabled: {
+    backgroundColor: "#eee",
+    borderColor: "#ddd",
+  },
+
+  reportReviewText: {
+    color: "#D32F2F",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+
+  reportReviewTextDisabled: {
+    color: "gray",
   },
 
   currentImagesBox: {
