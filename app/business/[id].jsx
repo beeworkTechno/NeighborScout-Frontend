@@ -102,6 +102,17 @@ export default function BusinessDetailPage() {
 
   const shouldShowBusinessImage = business?.hasProfilePhoto && !imageError;
 
+  const getAbsoluteReviewImageUrl = (imageUrl) => {
+    if (!imageUrl) return '';
+
+    if (imageUrl.startsWith('http')) {
+      return imageUrl;
+    }
+
+    const backendUrl = API_URL.replace('/api', '');
+    return `${backendUrl}${imageUrl}`;
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -246,6 +257,22 @@ export default function BusinessDetailPage() {
                 <Text style={styles.reviewComment}>
                   {review.comment || 'No comment provided.'}
                 </Text>
+
+                {review.imageUrls?.length > 0 && (
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.reviewImageRow}
+                  >
+                    {review.imageUrls.map((imageUrl, imageIndex) => (
+                      <Image
+                        key={`${review._id}-${imageIndex}`}
+                        source={{ uri: getAbsoluteReviewImageUrl(imageUrl) }}
+                        style={styles.reviewImage}
+                      />
+                    ))}
+                  </ScrollView>
+                )}
               </View>
             ))
           )}
@@ -425,6 +452,18 @@ const styles = StyleSheet.create({
   reviewComment: {
     color: '#555',
     lineHeight: 20,
+  },
+
+  reviewImageRow: {
+    marginTop: 10,
+  },
+
+  reviewImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 12,
+    marginRight: 10,
+    backgroundColor: '#eee',
   },
 
   emptyText: {
