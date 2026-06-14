@@ -70,6 +70,7 @@ export default function HomeScreen() {
     useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [reactionLoadingId, setReactionLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
 
@@ -513,6 +514,48 @@ export default function HomeScreen() {
     );
   };
 
+  const reactToReview = async (review, reaction) => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (isBusinessUser) {
+      Alert.alert(
+        "Not allowed",
+        "Business accounts cannot like or dislike reviews."
+      );
+      return;
+    }
+
+    if (!review.canReact) {
+      Alert.alert("Not allowed", "You cannot react to your own review.");
+      return;
+    }
+
+    try {
+      setReactionLoadingId(review._id);
+
+      const nextReaction = review.myReaction === reaction ? "none" : reaction;
+
+      await api.put(`/reviews/${review._id}/reaction`, {
+        reaction: nextReaction,
+      });
+
+      await fetchReviewsForBusiness(selectedBusiness._id);
+    } catch (error) {
+      console.log("React To Review Error:", error?.response?.data || error);
+
+      Alert.alert(
+        "Reaction Error",
+        error?.response?.data?.message ||
+          "Could not update your reaction. Please try again."
+      );
+    } finally {
+      setReactionLoadingId(null);
+    }
+  };
+
   const getCategoryIcon = (category = "") => {
     const value = category.toLowerCase();
 
@@ -902,6 +945,78 @@ export default function HomeScreen() {
     );
   };
 
+  const renderReviewReactions = (review) => {
+    const isLoading = reactionLoadingId === review._id;
+
+    return (
+      <View style={styles.reviewReactionRow}>
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === "like" && styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) && styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, "like")}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === "like"
+                ? "thumbs-up"
+                : "thumbs-up-outline"
+            }
+            size={16}
+            color={review.myReaction === "like" ? "#fff" : "#222"}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === "like" && styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.likeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === "dislike" &&
+              styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) && styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, "dislike")}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === "dislike"
+                ? "thumbs-down"
+                : "thumbs-down-outline"
+            }
+            size={16}
+            color={review.myReaction === "dislike" ? "#fff" : "#222"}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === "dislike" &&
+                styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.dislikeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        {isLoading && <ActivityIndicator size="small" color="#F9B208" />}
+      </View>
+    );
+  };
+
   const renderPersonalDashboard = () => {
     const nearestBusinesses = getNearestBusinesses(businesses);
     const filteredBusinesses = getFilteredBusinesses(nearestBusinesses);
@@ -1139,8 +1254,8 @@ export default function HomeScreen() {
             {isBusinessUser && (
               <View style={styles.infoBox}>
                 <Text style={styles.infoText}>
-                  Business accounts can view reviews but cannot create, edit, or
-                  delete reviews.
+                  Business accounts can view reviews but cannot create, edit,
+                  delete, like, or dislike reviews.
                 </Text>
               </View>
             )}
@@ -1272,6 +1387,8 @@ export default function HomeScreen() {
                       </Text>
 
                       {renderReviewImages(review)}
+
+                      {renderReviewReactions(review)}
 
                       {review.canEdit && review.canDelete && !isBusinessUser && (
                         <View style={styles.reviewActionRow}>
@@ -1895,6 +2012,43 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 10,
     backgroundColor: "#eee",
+  },
+
+  reviewReactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+  },
+
+  reviewReactionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+
+  reviewReactionButtonActive: {
+    backgroundColor: "#F9B208",
+    borderColor: "#F9B208",
+  },
+
+  reviewReactionButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  reviewReactionText: {
+    color: "#222",
+    fontWeight: "bold",
+  },
+
+  reviewReactionTextActive: {
+    color: "#fff",
   },
 
   currentImagesBox: {
