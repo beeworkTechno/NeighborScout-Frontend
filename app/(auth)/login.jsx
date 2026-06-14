@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -7,40 +7,30 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
-} from 'react-native';
+} from "react-native";
 
-import { useRouter } from 'expo-router';
-import axios from 'axios';
+import { useRouter } from "expo-router";
+import axios from "axios";
 
-import { saveToken, saveRole, getToken } from '../../utils/tokenUtils';
-import { useGoogleAuth } from '../../src/services/googleAuthService';
-import { API_URL } from '../../src/services/api';
+import { saveToken, saveRole, getToken } from "../../utils/tokenUtils";
+import { signInWithGoogle } from "../../src/services/googleAuthService";
+import { API_URL } from "../../src/services/api";
 
-import * as AuthSession from 'expo-auth-session';
-import colors from '../../src/styles/colors';
-
-console.log(
-  AuthSession.makeRedirectUri({
-    useProxy: true,
-  })
-);
+import colors from "../../src/styles/colors";
 
 export default function LoginScreen() {
   const router = useRouter();
-
   const passwordInputRef = useRef(null);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState({});
-  const [successMessage, setSuccessMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingToken, setCheckingToken] = useState(true);
-
-  const { response, promptAsync } = useGoogleAuth();
 
   useEffect(() => {
     checkExistingToken();
@@ -51,11 +41,11 @@ export default function LoginScreen() {
       const token = await getToken();
 
       if (token) {
-        router.replace('/(tabs)/home');
+        router.replace("/(tabs)/home");
         return;
       }
     } catch (error) {
-      console.log('Check Existing Token Error:', error);
+      console.log("Check Existing Token Error:", error);
     } finally {
       setCheckingToken(false);
     }
@@ -86,13 +76,13 @@ export default function LoginScreen() {
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail) {
-      newErrors.email = 'Email is required.';
+      newErrors.email = "Email is required.";
     } else if (!isValidEmail(trimmedEmail)) {
-      newErrors.email = 'Please enter a valid email address.';
+      newErrors.email = "Please enter a valid email address.";
     }
 
     if (!password) {
-      newErrors.password = 'Password is required.';
+      newErrors.password = "Password is required.";
     }
 
     setErrors(newErrors);
@@ -101,18 +91,14 @@ export default function LoginScreen() {
   };
 
   const handleLogin = async () => {
-    if (loading || googleLoading) {
-      return;
-    }
+    if (loading || googleLoading) return;
 
-    if (!validateLogin()) {
-      return;
-    }
+    if (!validateLogin()) return;
 
     try {
       setLoading(true);
       setErrors({});
-      setSuccessMessage('');
+      setSuccessMessage("");
 
       const res = await axios.post(`${API_URL}/auth/login`, {
         email: email.trim().toLowerCase(),
@@ -120,90 +106,117 @@ export default function LoginScreen() {
       });
 
       if (!res.data.token) {
-        Alert.alert('Login Error', 'No token received from server.');
+        Alert.alert("Login Error", "No token received from server.");
         return;
       }
 
       await saveToken(res.data.token);
 
-      const role = res.data.role || res.data.user?.role || 'personal';
+      const role = res.data.role || res.data.user?.role || "personal";
       await saveRole(role);
 
-      setSuccessMessage('Login successful. Entering home page...');
+      setSuccessMessage("Login successful. Entering home page...");
 
       setTimeout(() => {
-        router.replace('/(tabs)/home');
+        router.replace("/(tabs)/home");
       }, 1000);
     } catch (error) {
-      console.log('Login Error:', error?.response?.data || error);
+      console.log("Login Error:", error?.response?.data || error);
 
-      const message = getErrorMessage(error, 'Login failed. Please try again.');
+      const message = getErrorMessage(error, "Login failed. Please try again.");
 
       setErrors({
         form: message,
       });
 
-      Alert.alert('Login Error', message);
+      Alert.alert("Login Error", message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    const handleGoogleLogin = async () => {
-      try {
-        if (response?.type === 'success') {
-          setGoogleLoading(true);
-          setErrors({});
-          setSuccessMessage('');
+  const handleGoogleLogin = async () => {
+    if (loading || googleLoading) return;
 
-          const token = response.authentication?.idToken;
+    try {
+      setGoogleLoading(true);
+      setErrors({});
+      setSuccessMessage("");
 
-          if (!token) {
-            Alert.alert('Google Login Error', 'No Google ID token received');
-            return;
-          }
+      const googleResult = await signInWithGoogle();
 
-          const res = await axios.post(`${API_URL}/auth/google`, {
-            token,
-          });
+      console.log("Google login final result:", googleResult);
 
-          if (!res.data.token) {
-            Alert.alert('Google Login Error', 'No token received from server.');
-            return;
-          }
-
-          await saveToken(res.data.token);
-
-          const role = res.data.role || res.data.user?.role || 'personal';
-          await saveRole(role);
-
-          setSuccessMessage('Google login successful. Entering home page...');
-
-          setTimeout(() => {
-            router.replace('/(tabs)/home');
-          }, 1000);
-        }
-      } catch (error) {
-        console.log('Google Login Error:', error?.response?.data || error);
-
-        const message = getErrorMessage(
-          error,
-          'Google login failed. Please try again.'
-        );
-
+      if (googleResult.type !== "success") {
         setErrors({
-          form: message,
+          form: "Google login was cancelled or dismissed.",
+        });
+        return;
+      }
+
+      const accessToken = googleResult.accessToken;
+      const idToken = googleResult.idToken;
+
+      console.log("Final access token exists:", Boolean(accessToken));
+      console.log("Final id token exists:", Boolean(idToken));
+
+      if (!accessToken && !idToken) {
+        setErrors({
+          form: "Google token missing. Please try again.",
         });
 
-        Alert.alert('Google Login Error', message);
-      } finally {
-        setGoogleLoading(false);
-      }
-    };
+        Alert.alert(
+          "Google Login Error",
+          "Google token missing. Please try again."
+        );
 
-    handleGoogleLogin();
-  }, [response]);
+        return;
+      }
+
+      const res = await axios.post(`${API_URL}/auth/google`, {
+        accessToken,
+        idToken,
+        token: idToken,
+      });
+
+      console.log("Backend Google login response:", res.data);
+
+      if (!res.data.token) {
+        setErrors({
+          form: "No token received from server.",
+        });
+
+        Alert.alert("Google Login Error", "No token received from server.");
+        return;
+      }
+
+      await saveToken(res.data.token);
+
+      const role = res.data.role || res.data.user?.role || "personal";
+      await saveRole(role);
+
+      setSuccessMessage("Google login successful. Entering home page...");
+
+      setTimeout(() => {
+        router.replace("/(tabs)/home");
+      }, 1000);
+    } catch (error) {
+      console.log("Google Login Error:", error?.response?.data || error);
+
+      const message = getErrorMessage(
+        error,
+        "Google login failed. Please try again."
+      );
+
+      setErrors({
+        form: message,
+      });
+
+      Alert.alert("Google Login Error", message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   if (checkingToken) {
     return (
@@ -222,9 +235,7 @@ export default function LoginScreen() {
         <Text style={styles.successBox}>{successMessage}</Text>
       ) : null}
 
-      {errors.form ? (
-        <Text style={styles.formError}>{errors.form}</Text>
-      ) : null}
+      {errors.form ? <Text style={styles.formError}>{errors.form}</Text> : null}
 
       <TextInput
         placeholder="Email"
@@ -232,22 +243,17 @@ export default function LoginScreen() {
         onChangeText={(text) => {
           setEmail(text);
 
-          if (successMessage) {
-            setSuccessMessage('');
-          }
+          if (successMessage) setSuccessMessage("");
 
           if (errors.email || errors.form) {
             setErrors({
               ...errors,
-              email: '',
-              form: '',
+              email: "",
+              form: "",
             });
           }
         }}
-        style={[
-          styles.input,
-          errors.email ? styles.inputError : null,
-        ]}
+        style={[styles.input, errors.email ? styles.inputError : null]}
         autoCapitalize="none"
         keyboardType="email-address"
         autoCorrect={false}
@@ -256,9 +262,7 @@ export default function LoginScreen() {
         onSubmitEditing={() => passwordInputRef.current?.focus()}
       />
 
-      {errors.email ? (
-        <Text style={styles.errorText}>{errors.email}</Text>
-      ) : null}
+      {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
       <TextInput
         ref={passwordInputRef}
@@ -267,22 +271,17 @@ export default function LoginScreen() {
         onChangeText={(text) => {
           setPassword(text);
 
-          if (successMessage) {
-            setSuccessMessage('');
-          }
+          if (successMessage) setSuccessMessage("");
 
           if (errors.password || errors.form) {
             setErrors({
               ...errors,
-              password: '',
-              form: '',
+              password: "",
+              form: "",
             });
           }
         }}
-        style={[
-          styles.input,
-          errors.password ? styles.inputError : null,
-        ]}
+        style={[styles.input, errors.password ? styles.inputError : null]}
         secureTextEntry
         returnKeyType="done"
         onSubmitEditing={handleLogin}
@@ -293,10 +292,7 @@ export default function LoginScreen() {
       ) : null}
 
       <TouchableOpacity
-        style={[
-          styles.loginButton,
-          loading ? styles.disabledButton : null,
-        ]}
+        style={[styles.loginButton, loading ? styles.disabledButton : null]}
         onPress={handleLogin}
         disabled={loading || googleLoading}
       >
@@ -308,11 +304,8 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       <TouchableOpacity
-        style={[
-          styles.googleButton,
-          googleLoading ? styles.disabledButton : null,
-        ]}
-        onPress={() => promptAsync()}
+        style={[styles.googleButton, googleLoading ? styles.disabledButton : null]}
+        onPress={handleGoogleLogin}
         disabled={googleLoading || loading}
       >
         {googleLoading ? (
@@ -322,7 +315,7 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
+      <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
         <Text style={styles.registerText}>
           Don't have an account? Register
         </Text>
@@ -334,8 +327,8 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.bg,
   },
 
@@ -346,27 +339,27 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
     padding: 20,
     backgroundColor: colors.bg,
   },
 
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 30,
-    textAlign: 'center',
+    textAlign: "center",
     color: colors.text,
   },
 
   successBox: {
-    backgroundColor: '#E8F5E9',
-    color: '#2E7D32',
+    backgroundColor: "#E8F5E9",
+    color: "#2E7D32",
     padding: 12,
     borderRadius: 8,
     marginBottom: 15,
-    textAlign: 'center',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "600",
   },
 
   input: {
@@ -379,35 +372,38 @@ const styles = StyleSheet.create({
   },
 
   inputError: {
-    borderColor: '#D32F2F',
+    borderColor: "#D32F2F",
   },
 
   errorText: {
-    color: '#D32F2F',
+    color: "#D32F2F",
     marginBottom: 10,
     fontSize: 13,
   },
 
   formError: {
-    backgroundColor: '#FFECEC',
-    color: '#D32F2F',
+    backgroundColor: "#FFECEC",
+    color: "#D32F2F",
     padding: 12,
     borderRadius: 8,
     marginBottom: 15,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   loginButton: {
     backgroundColor: colors.primaryDark,
     padding: 16,
     borderRadius: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 8,
     marginBottom: 15,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 4,
   },
 
@@ -415,12 +411,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     padding: 16,
     borderRadius: 16,
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.12,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 4,
   },
 
@@ -430,13 +429,13 @@ const styles = StyleSheet.create({
 
   buttonText: {
     color: colors.white,
-    fontWeight: '700',
+    fontWeight: "700",
     fontSize: 16,
     letterSpacing: 0.2,
   },
 
   registerText: {
-    textAlign: 'center',
+    textAlign: "center",
     color: colors.primary,
   },
 });

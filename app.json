@@ -3,11 +3,8 @@
     "name": "NeighborScout",
     "slug": "neighborscout",
     "version": "1.0.0",
-
-    "scheme": ["neighborscout"],
-
+    "scheme": "neighborscout",
     "orientation": "portrait",
-
     "userInterfaceStyle": "light",
 
     "web": {
@@ -26,7 +23,11 @@
 
     "android": {
       "package": "com.neighborscout.neighborscout",
-
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_MEDIA_IMAGES"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -35,7 +36,19 @@
 
     "ios": {
       "bundleIdentifier": "com.neighborscout.neighborscout",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "NeighborScout uses your location to show nearby businesses.",
+        "NSPhotoLibraryUsageDescription": "NeighborScout needs photo library access to upload business and profile photos.",
+        "NSCameraUsageDescription": "NeighborScout may use the camera to add business and profile photos."
+      }
+    },
+
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6c43d551-4c1f-4005-94e9-c1a99c98a739"
+      }
     }
   }
 }

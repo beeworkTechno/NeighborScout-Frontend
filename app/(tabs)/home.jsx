@@ -18,9 +18,10 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as Location from "expo-location";
+import * as ImagePicker from "expo-image-picker";
 
 import BusinessMap from "../../components/BusinessMap";
-import api from "../../src/services/api";
+import api, { API_URL } from "../../src/services/api";
 import colors from "../../src/styles/colors";
 import {
   getToken,
@@ -58,13 +59,19 @@ export default function HomeScreen() {
   const [selectedBusinessReviews, setSelectedBusinessReviews] = useState([]);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
+  const [reviewImages, setReviewImages] = useState([]);
   const [reviewLoading, setReviewLoading] = useState(false);
 
   const [editingReview, setEditingReview] = useState(null);
   const [editingRating, setEditingRating] = useState(5);
   const [editingComment, setEditingComment] = useState("");
+  const [editingImages, setEditingImages] = useState([]);
+  const [removeExistingEditImages, setRemoveExistingEditImages] =
+    useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState(null);
+  const [reactionLoadingId, setReactionLoadingId] = useState(null);
+  const [reportLoadingId, setReportLoadingId] = useState(null);
 
   const isBusinessUser = userRole === "business";
 
@@ -185,12 +192,15 @@ export default function HomeScreen() {
   const resetReviewForm = () => {
     setReviewRating(5);
     setReviewComment("");
+    setReviewImages([]);
   };
 
   const resetEditForm = () => {
     setEditingReview(null);
     setEditingRating(5);
     setEditingComment("");
+    setEditingImages([]);
+    setRemoveExistingEditImages(false);
   };
 
   const closeReviewModal = () => {
@@ -221,6 +231,99 @@ export default function HomeScreen() {
     }
   };
 
+  const createReviewImageFile = async (image, index) => {
+    const mimeType = image.mimeType || image.type || "image/jpeg";
+    const extension = mimeType.split("/")[1] || "jpg";
+    const fileName =
+      image.fileName || `review-image-${Date.now()}-${index}.${extension}`;
+
+    if (Platform.OS === "web") {
+      const response = await fetch(image.uri);
+      const blob = await response.blob();
+
+      return new File([blob], fileName, {
+        type: blob.type || mimeType,
+      });
+    }
+
+    return {
+      uri: image.uri,
+      name: fileName,
+      type: mimeType,
+    };
+  };
+
+  const pickImages = async (currentImages, setImages) => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Permission needed",
+          "Please allow photo access to add review images."
+        );
+        return;
+      }
+
+      const remainingSlots = 5 - currentImages.length;
+
+      if (remainingSlots <= 0) {
+        Alert.alert("Limit reached", "You can upload up to 5 images.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsMultipleSelection: true,
+        selectionLimit: remainingSlots,
+        quality: 0.85,
+        exif: false,
+      });
+
+      if (result.canceled) return;
+
+      const selectedImages = (result.assets || []).slice(0, remainingSlots);
+
+      setImages((previousImages) =>
+        [...previousImages, ...selectedImages].slice(0, 5)
+      );
+    } catch (error) {
+      console.log("Pick Review Images Error:", error);
+      Alert.alert("Image Error", "Could not select review images.");
+    }
+  };
+
+  const pickReviewImages = async () => {
+    await pickImages(reviewImages, setReviewImages);
+  };
+
+  const pickEditingImages = async () => {
+    await pickImages(editingImages, setEditingImages);
+  };
+
+  const removeReviewImage = (imageIndex) => {
+    setReviewImages((previousImages) =>
+      previousImages.filter((_, index) => index !== imageIndex)
+    );
+  };
+
+  const removeEditingImage = (imageIndex) => {
+    setEditingImages((previousImages) =>
+      previousImages.filter((_, index) => index !== imageIndex)
+    );
+  };
+
+  const getAbsoluteReviewImageUrl = (imageUrl) => {
+    if (!imageUrl) return "";
+
+    if (imageUrl.startsWith("http")) {
+      return imageUrl;
+    }
+
+    const backendUrl = API_URL.replace("/api", "");
+    return `${backendUrl}${imageUrl}`;
+  };
+
   const submitReview = async () => {
     if (!selectedBusiness?._id) {
       Alert.alert("Error", "No business selected.");
@@ -243,9 +346,19 @@ export default function HomeScreen() {
     try {
       setReviewLoading(true);
 
-      await api.post(`/reviews/${selectedBusiness._id}`, {
-        rating: reviewRating,
-        comment: reviewComment.trim(),
+      const formData = new FormData();
+      formData.append("rating", String(reviewRating));
+      formData.append("comment", reviewComment.trim());
+
+      for (let index = 0; index < reviewImages.length; index += 1) {
+        const imageFile = await createReviewImageFile(reviewImages[index], index);
+        formData.append("images", imageFile);
+      }
+
+      await api.post(`/reviews/${selectedBusiness._id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       resetReviewForm();
@@ -271,6 +384,8 @@ export default function HomeScreen() {
     setEditingReview(review);
     setEditingRating(review.rating || 5);
     setEditingComment(review.comment || "");
+    setEditingImages([]);
+    setRemoveExistingEditImages(false);
   };
 
   const cancelEditReview = () => {
@@ -296,9 +411,27 @@ export default function HomeScreen() {
     try {
       setEditLoading(true);
 
-      await api.put(`/reviews/${editingReview._id}`, {
-        rating: editingRating,
-        comment: editingComment.trim(),
+      const formData = new FormData();
+      formData.append("rating", String(editingRating));
+      formData.append("comment", editingComment.trim());
+
+      if (removeExistingEditImages) {
+        formData.append("removeImages", "true");
+      }
+
+      for (let index = 0; index < editingImages.length; index += 1) {
+        const imageFile = await createReviewImageFile(
+          editingImages[index],
+          index
+        );
+
+        formData.append("images", imageFile);
+      }
+
+      await api.put(`/reviews/${editingReview._id}`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
 
       await fetchReviewsForBusiness(selectedBusiness._id);
@@ -377,6 +510,121 @@ export default function HomeScreen() {
           text: "Delete",
           style: "destructive",
           onPress: performDelete,
+        },
+      ]
+    );
+  };
+
+  const reactToReview = async (review, reaction) => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (isBusinessUser) {
+      Alert.alert(
+        "Not allowed",
+        "Business accounts cannot like or dislike reviews."
+      );
+      return;
+    }
+
+    if (!review.canReact) {
+      Alert.alert("Not allowed", "You cannot react to your own review.");
+      return;
+    }
+
+    try {
+      setReactionLoadingId(review._id);
+
+      const nextReaction = review.myReaction === reaction ? "none" : reaction;
+
+      await api.put(`/reviews/${review._id}/reaction`, {
+        reaction: nextReaction,
+      });
+
+      await fetchReviewsForBusiness(selectedBusiness._id);
+    } catch (error) {
+      console.log("React To Review Error:", error?.response?.data || error);
+
+      Alert.alert(
+        "Reaction Error",
+        error?.response?.data?.message ||
+          "Could not update your reaction. Please try again."
+      );
+    } finally {
+      setReactionLoadingId(null);
+    }
+  };
+
+  const reportReview = async (review) => {
+    if (!selectedBusiness?._id) {
+      Alert.alert("Error", "No business selected.");
+      return;
+    }
+
+    if (!review.canReport) {
+      Alert.alert(
+        "Not allowed",
+        review.reportedByMe
+          ? "You have already reported this review."
+          : "You can only report reviews posted by other personal users."
+      );
+      return;
+    }
+
+    const performReport = async () => {
+      try {
+        setReportLoadingId(review._id);
+
+        await api.post(`/reviews/${review._id}/report`, {
+          reason: "inappropriate",
+          details: "",
+        });
+
+        await fetchReviewsForBusiness(selectedBusiness._id);
+
+        Alert.alert(
+          "Reported",
+          "Review reported successfully. A super admin will verify it."
+        );
+      } catch (error) {
+        console.log("Report Review Error:", error?.response?.data || error);
+
+        Alert.alert(
+          "Report Error",
+          error?.response?.data?.message ||
+            "Could not report this review. Please try again."
+        );
+      } finally {
+        setReportLoadingId(null);
+      }
+    };
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Report this review for super admin verification?"
+      );
+
+      if (confirmed) {
+        await performReport();
+      }
+
+      return;
+    }
+
+    Alert.alert(
+      "Report Review",
+      "Report this review for super admin verification?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Report",
+          style: "destructive",
+          onPress: performReport,
         },
       ]
     );
@@ -717,6 +965,174 @@ export default function HomeScreen() {
     </View>
   );
 
+  const renderSelectedImagePreview = (images, removeImage) => {
+    if (images.length === 0) return null;
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.selectedReviewImageRow}
+      >
+        {images.map((image, imageIndex) => (
+          <View
+            key={`${image.uri}-${imageIndex}`}
+            style={styles.selectedReviewImageWrap}
+          >
+            <Image
+              source={{ uri: image.uri }}
+              style={styles.selectedReviewImage}
+            />
+
+            <TouchableOpacity
+              style={styles.removeReviewImageButton}
+              onPress={() => removeImage(imageIndex)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderReviewImages = (review) => {
+    if (!review.imageUrls || review.imageUrls.length === 0) {
+      return null;
+    }
+
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.reviewImageRow}
+      >
+        {review.imageUrls.map((imageUrl, imageIndex) => (
+          <Image
+            key={`${review._id}-${imageIndex}`}
+            source={{ uri: getAbsoluteReviewImageUrl(imageUrl) }}
+            style={styles.reviewImage}
+          />
+        ))}
+      </ScrollView>
+    );
+  };
+
+  const renderReviewReactions = (review) => {
+    const isLoading = reactionLoadingId === review._id;
+
+    return (
+      <View style={styles.reviewReactionRow}>
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === "like" && styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, "like")}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === "like"
+                ? "thumbs-up"
+                : "thumbs-up-outline"
+            }
+            size={16}
+            color={review.myReaction === "like" ? "#fff" : "#222"}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === "like" && styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.likeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[
+            styles.reviewReactionButton,
+            review.myReaction === "dislike" &&
+              styles.reviewReactionButtonActive,
+            (!review.canReact || isLoading) &&
+              styles.reviewReactionButtonDisabled,
+          ]}
+          onPress={() => reactToReview(review, "dislike")}
+          disabled={!review.canReact || isLoading}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name={
+              review.myReaction === "dislike"
+                ? "thumbs-down"
+                : "thumbs-down-outline"
+            }
+            size={16}
+            color={review.myReaction === "dislike" ? "#fff" : "#222"}
+          />
+
+          <Text
+            style={[
+              styles.reviewReactionText,
+              review.myReaction === "dislike" &&
+                styles.reviewReactionTextActive,
+            ]}
+          >
+            {review.dislikeCount || 0}
+          </Text>
+        </TouchableOpacity>
+
+        {isLoading && <ActivityIndicator size="small" color="#F9B208" />}
+      </View>
+    );
+  };
+
+  const renderReportButton = (review) => {
+    if (!review.canReport && !review.reportedByMe) {
+      return null;
+    }
+
+    const isLoading = reportLoadingId === review._id;
+
+    return (
+      <TouchableOpacity
+        style={[
+          styles.reportReviewButton,
+          review.reportedByMe && styles.reportReviewButtonDisabled,
+          isLoading && styles.reportReviewButtonDisabled,
+        ]}
+        onPress={() => reportReview(review)}
+        disabled={review.reportedByMe || isLoading}
+        activeOpacity={0.8}
+      >
+        {isLoading ? (
+          <ActivityIndicator size="small" color="#D32F2F" />
+        ) : (
+          <Ionicons
+            name="flag-outline"
+            size={15}
+            color={review.reportedByMe ? "gray" : "#D32F2F"}
+          />
+        )}
+
+        <Text
+          style={[
+            styles.reportReviewText,
+            review.reportedByMe && styles.reportReviewTextDisabled,
+          ]}
+        >
+          {review.reportedByMe ? "Reported" : "Report Review"}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
   const renderPersonalDashboard = () => {
     const nearestBusinesses = getNearestBusinesses(businesses);
     const filteredBusinesses = getFilteredBusinesses(nearestBusinesses);
@@ -921,6 +1337,20 @@ export default function HomeScreen() {
                 />
 
                 <TouchableOpacity
+                  style={styles.addReviewImagesButton}
+                  onPress={pickReviewImages}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="images-outline" size={18} color="#fff" />
+
+                  <Text style={styles.addReviewImagesButtonText}>
+                    Add Images ({reviewImages.length}/5)
+                  </Text>
+                </TouchableOpacity>
+
+                {renderSelectedImagePreview(reviewImages, removeReviewImage)}
+
+                <TouchableOpacity
                   style={[
                     styles.submitReviewButton,
                     reviewLoading && styles.disabledButton,
@@ -940,8 +1370,8 @@ export default function HomeScreen() {
             {isBusinessUser && (
               <View style={styles.infoBox}>
                 <Text style={styles.infoText}>
-                  Business accounts can view reviews but cannot create, edit, or
-                  delete reviews.
+                  Business accounts can view reviews but cannot create, edit,
+                  delete, like, dislike, or report reviews.
                 </Text>
               </View>
             )}
@@ -988,6 +1418,50 @@ export default function HomeScreen() {
                         blurOnSubmit={false}
                       />
 
+                      {review.imageUrls?.length > 0 &&
+                        !removeExistingEditImages && (
+                          <View style={styles.currentImagesBox}>
+                            <Text style={styles.currentImagesTitle}>
+                              Current Images
+                            </Text>
+
+                            {renderReviewImages(review)}
+
+                            <TouchableOpacity
+                              style={styles.removeExistingImagesButton}
+                              onPress={() => setRemoveExistingEditImages(true)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={styles.removeExistingImagesText}>
+                                Remove Current Images
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        )}
+
+                      {removeExistingEditImages && (
+                        <Text style={styles.imagesRemovedText}>
+                          Current images will be removed after saving.
+                        </Text>
+                      )}
+
+                      <TouchableOpacity
+                        style={styles.addReviewImagesButton}
+                        onPress={pickEditingImages}
+                        activeOpacity={0.8}
+                      >
+                        <Ionicons name="images-outline" size={18} color="#fff" />
+
+                        <Text style={styles.addReviewImagesButtonText}>
+                          Add New Images ({editingImages.length}/5)
+                        </Text>
+                      </TouchableOpacity>
+
+                      {renderSelectedImagePreview(
+                        editingImages,
+                        removeEditingImage
+                      )}
+
                       <TouchableOpacity
                         style={[
                           styles.submitReviewButton,
@@ -1027,6 +1501,12 @@ export default function HomeScreen() {
                       <Text style={styles.reviewComment}>
                         {review.comment || "No comment provided."}
                       </Text>
+
+                      {renderReviewImages(review)}
+
+                      {renderReviewReactions(review)}
+
+                      {renderReportButton(review)}
 
                       {review.canEdit && review.canDelete && !isBusinessUser && (
                         <View style={styles.reviewActionRow}>
@@ -1527,6 +2007,50 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
+  addReviewImagesButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#F9B208",
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+
+  addReviewImagesButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  selectedReviewImageRow: {
+    marginBottom: 14,
+  },
+
+  selectedReviewImageWrap: {
+    marginRight: 10,
+    position: "relative",
+  },
+
+  selectedReviewImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 12,
+    backgroundColor: "#eee",
+  },
+
+  removeReviewImageButton: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   submitReviewButton: {
     backgroundColor: colors.primary,
     padding: 14,
@@ -1594,6 +2118,121 @@ const styles = StyleSheet.create({
   reviewComment: {
     color: "#555",
     lineHeight: 20,
+  },
+
+  reviewImageRow: {
+    marginTop: 10,
+  },
+
+  reviewImage: {
+    width: 110,
+    height: 110,
+    borderRadius: 12,
+    marginRight: 10,
+    backgroundColor: "#eee",
+  },
+
+  reviewReactionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 12,
+  },
+
+  reviewReactionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+
+  reviewReactionButtonActive: {
+    backgroundColor: "#F9B208",
+    borderColor: "#F9B208",
+  },
+
+  reviewReactionButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  reviewReactionText: {
+    color: "#222",
+    fontWeight: "bold",
+  },
+
+  reviewReactionTextActive: {
+    color: "#fff",
+  },
+
+  reportReviewButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 6,
+    marginTop: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: "#FFECEC",
+    borderWidth: 1,
+    borderColor: "#FFD0D0",
+  },
+
+  reportReviewButtonDisabled: {
+    backgroundColor: "#eee",
+    borderColor: "#ddd",
+  },
+
+  reportReviewText: {
+    color: "#D32F2F",
+    fontWeight: "bold",
+    fontSize: 13,
+  },
+
+  reportReviewTextDisabled: {
+    color: "gray",
+  },
+
+  currentImagesBox: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 12,
+  },
+
+  currentImagesTitle: {
+    fontWeight: "bold",
+    color: "#222",
+    marginBottom: 2,
+  },
+
+  removeExistingImagesButton: {
+    backgroundColor: "#D32F2F",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  removeExistingImagesText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+
+  imagesRemovedText: {
+    color: "#D32F2F",
+    backgroundColor: "#FFECEC",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontWeight: "600",
   },
 
   reviewActionRow: {
