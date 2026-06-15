@@ -36,16 +36,17 @@ export default function SearchScreen() {
           contentContainerStyle={styles.categoryScroll}
         >
           {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
-            const isActive = selectedCategory === category;
+            const categoryValue = category.id === 'all' ? 'All' : category.name;
+            const isActive = selectedCategory === categoryValue;
 
             return (
               <TouchableOpacity
-                key={category}
+                key={category.id}
                 style={[
                   styles.categoryButton,
                   isActive ? styles.categoryButtonActive : null,
                 ]}
-                onPress={() => setSelectedCategory(category)}
+                onPress={() => setSelectedCategory(categoryValue)}
               >
                 <Text
                   style={[
@@ -53,7 +54,7 @@ export default function SearchScreen() {
                     isActive ? styles.categoryButtonTextActive : null,
                   ]}
                 >
-                  {category}
+                  {category.label || category.name}
                 </Text>
               </TouchableOpacity>
             );

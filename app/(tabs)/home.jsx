@@ -926,16 +926,17 @@ export default function HomeScreen() {
           contentContainerStyle={styles.categoryFilterContainer}
         >
           {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
-            const isActive = selectedCategory === category;
+            const categoryValue = category.id === 'all' ? 'All' : category.name;
+            const isActive = selectedCategory === categoryValue;
 
             return (
               <TouchableOpacity
-                key={category}
+                key={category.id}
                 style={[
                   styles.categoryChip,
                   isActive ? styles.categoryChipActive : null,
                 ]}
-                onPress={() => setSelectedCategory(category)}
+                onPress={() => setSelectedCategory(categoryValue)}
               >
                 <Text
                   style={[
@@ -943,7 +944,7 @@ export default function HomeScreen() {
                     isActive ? styles.categoryChipTextActive : null,
                   ]}
                 >
-                  {category}
+                  {category.label || category.name}
                 </Text>
               </TouchableOpacity>
             );
