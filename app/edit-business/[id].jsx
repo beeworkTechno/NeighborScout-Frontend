@@ -416,21 +416,21 @@ export default function EditBusinessScreen() {
         <View style={styles.categoryContainer}>
           {BUSINESS_CATEGORIES.map((category) => (
             <TouchableOpacity
-              key={category}
+              key={category.id}
               style={[
                 styles.categoryButton,
-                form.category === category && styles.categoryButtonActive,
+                form.category === category.name && styles.categoryButtonActive,
               ]}
-              onPress={() => handleChange('category', category)}
+              onPress={() => handleChange('category', category.name)}
               activeOpacity={0.8}
             >
               <Text
                 style={[
                   styles.categoryText,
-                  form.category === category && styles.categoryTextActive,
+                  form.category === category.name && styles.categoryTextActive,
                 ]}
               >
-                {category}
+                {category.label || category.name}
               </Text>
             </TouchableOpacity>
           ))}

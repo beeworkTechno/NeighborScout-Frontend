@@ -31,7 +31,28 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "neighborscout"
+            },
+            {
+              "scheme": "https",
+              "host": "neighborscout-backend.onrender.com",
+              "pathPrefix": "/share/business"
+            },
+            {
+              "scheme": "http",
+              "host": "neighborscout-backend.onrender.com",
+              "pathPrefix": "/share/business"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
 
     "ios": {

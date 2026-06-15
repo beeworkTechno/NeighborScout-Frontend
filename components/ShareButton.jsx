@@ -26,6 +26,7 @@ export default function ShareButton({
     try {
       setLoading(true);
 
+      // Send business details to backend for the share URL generation
       const response = await api.get(`/share/business/${encodeURIComponent(businessId)}`, {
         params: {
           name: businessName,

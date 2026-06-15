@@ -9,7 +9,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  Platform,
 } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -25,10 +24,9 @@ export default function BusinessDetailPage() {
 
   const [business, setBusiness] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [shareUrl, setShareUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [imageError, setImageError] = useState(false);
-  const [reactionLoadingId, setReactionLoadingId] = useState(null);
-  const [reportLoadingId, setReportLoadingId] = useState(null);
 
   useEffect(() => {
     if (id) {
@@ -44,7 +42,19 @@ export default function BusinessDetailPage() {
       const businessResponse = await api.get(`/businesses/${id}`);
       setBusiness(businessResponse.data);
 
-      await loadBusinessReviews();
+      const reviewResponse = await api.get(`/reviews/${id}`);
+      setReviews(reviewResponse.data || []);
+
+      // Fetch the share URL from backend to avoid localhost in production
+      try {
+        const shareResponse = await api.get(`/share/business/${encodeURIComponent(id)}`);
+        if (shareResponse.data?.shareUrl) {
+          setShareUrl(shareResponse.data.shareUrl);
+        }
+      } catch (shareError) {
+        console.log('Share URL fetch error:', shareError);
+        // Continue without shareUrl if fetch fails
+      }
     } catch (error) {
       console.log('Business Detail Error:', error?.response?.data || error);
 
@@ -55,116 +65,6 @@ export default function BusinessDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadBusinessReviews = async () => {
-    try {
-      const reviewResponse = await api.get(`/reviews/${id}`);
-      setReviews(reviewResponse.data || []);
-    } catch (error) {
-      console.log('Load Business Reviews Error:', error?.response?.data || error);
-      setReviews([]);
-    }
-  };
-
-  const reactToReview = async (review, reaction) => {
-    if (!review.canReact) {
-      Alert.alert(
-        'Not allowed',
-        'You cannot react to your own review, or you may need to log in as a personal user.'
-      );
-      return;
-    }
-
-    try {
-      setReactionLoadingId(review._id);
-
-      const nextReaction = review.myReaction === reaction ? 'none' : reaction;
-
-      await api.put(`/reviews/${review._id}/reaction`, {
-        reaction: nextReaction,
-      });
-
-      await loadBusinessReviews();
-    } catch (error) {
-      console.log('React To Review Error:', error?.response?.data || error);
-
-      Alert.alert(
-        'Reaction Error',
-        error?.response?.data?.message ||
-          'Could not update your reaction. Please try again.'
-      );
-    } finally {
-      setReactionLoadingId(null);
-    }
-  };
-
-  const reportReview = async (review) => {
-    if (!review.canReport) {
-      Alert.alert(
-        'Not allowed',
-        review.reportedByMe
-          ? 'You have already reported this review.'
-          : 'You can only report reviews posted by other personal users.'
-      );
-      return;
-    }
-
-    const performReport = async () => {
-      try {
-        setReportLoadingId(review._id);
-
-        await api.post(`/reviews/${review._id}/report`, {
-          reason: 'inappropriate',
-          details: '',
-        });
-
-        await loadBusinessReviews();
-
-        Alert.alert(
-          'Reported',
-          'Review reported successfully. A super admin will verify it.'
-        );
-      } catch (error) {
-        console.log('Report Review Error:', error?.response?.data || error);
-
-        Alert.alert(
-          'Report Error',
-          error?.response?.data?.message ||
-            'Could not report this review. Please try again.'
-        );
-      } finally {
-        setReportLoadingId(null);
-      }
-    };
-
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(
-        'Report this review for super admin verification?'
-      );
-
-      if (confirmed) {
-        await performReport();
-      }
-
-      return;
-    }
-
-    Alert.alert(
-      'Report Review',
-      'Report this review for super admin verification?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Report',
-          style: 'destructive',
-          onPress: performReport,
-        },
-      ]
-    );
   };
 
   const getCategoryIcon = (category = '') => {
@@ -196,15 +96,18 @@ export default function BusinessDetailPage() {
   };
 
   const getBusinessUrl = () => {
-    if (business?.businessPageUrl) {
-      return business.businessPageUrl;
+    // Use the share URL from backend if available (production URL)
+    if (shareUrl) {
+      return shareUrl;
     }
 
+    // Fallback if shareUrl is not available
     if (!id) {
       return '';
     }
 
-    return `http://localhost:8081/business/${id}`;
+    const backendUrl = API_URL.replace(/\/api$/, '');
+    return `${backendUrl}/share/business/${id}`;
   };
 
   const getBusinessPhotoUrl = () => {
@@ -212,154 +115,7 @@ export default function BusinessDetailPage() {
     return `${backendUrl}/api/businesses/${id}/photo`;
   };
 
-  const getAbsoluteReviewImageUrl = (imageUrl) => {
-    if (!imageUrl) return '';
-
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-
-    const backendUrl = API_URL.replace('/api', '');
-    return `${backendUrl}${imageUrl}`;
-  };
-
   const shouldShowBusinessImage = business?.hasProfilePhoto && !imageError;
-
-  const renderReviewImages = (review) => {
-    if (!review.imageUrls || review.imageUrls.length === 0) {
-      return null;
-    }
-
-    return (
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.reviewImageRow}
-      >
-        {review.imageUrls.map((imageUrl, imageIndex) => (
-          <Image
-            key={`${review._id}-${imageIndex}`}
-            source={{ uri: getAbsoluteReviewImageUrl(imageUrl) }}
-            style={styles.reviewImage}
-          />
-        ))}
-      </ScrollView>
-    );
-  };
-
-  const renderReviewReactions = (review) => {
-    const isLoading = reactionLoadingId === review._id;
-
-    return (
-      <View style={styles.reviewReactionRow}>
-        <TouchableOpacity
-          style={[
-            styles.reviewReactionButton,
-            review.myReaction === 'like' && styles.reviewReactionButtonActive,
-            (!review.canReact || isLoading) &&
-              styles.reviewReactionButtonDisabled,
-          ]}
-          onPress={() => reactToReview(review, 'like')}
-          disabled={!review.canReact || isLoading}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={
-              review.myReaction === 'like'
-                ? 'thumbs-up'
-                : 'thumbs-up-outline'
-            }
-            size={16}
-            color={review.myReaction === 'like' ? '#fff' : '#222'}
-          />
-
-          <Text
-            style={[
-              styles.reviewReactionText,
-              review.myReaction === 'like' && styles.reviewReactionTextActive,
-            ]}
-          >
-            {review.likeCount || 0}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.reviewReactionButton,
-            review.myReaction === 'dislike' &&
-              styles.reviewReactionButtonActive,
-            (!review.canReact || isLoading) &&
-              styles.reviewReactionButtonDisabled,
-          ]}
-          onPress={() => reactToReview(review, 'dislike')}
-          disabled={!review.canReact || isLoading}
-          activeOpacity={0.8}
-        >
-          <Ionicons
-            name={
-              review.myReaction === 'dislike'
-                ? 'thumbs-down'
-                : 'thumbs-down-outline'
-            }
-            size={16}
-            color={review.myReaction === 'dislike' ? '#fff' : '#222'}
-          />
-
-          <Text
-            style={[
-              styles.reviewReactionText,
-              review.myReaction === 'dislike' &&
-                styles.reviewReactionTextActive,
-            ]}
-          >
-            {review.dislikeCount || 0}
-          </Text>
-        </TouchableOpacity>
-
-        {isLoading && <ActivityIndicator size="small" color="#F9B208" />}
-      </View>
-    );
-  };
-
-  const renderReportButton = (review) => {
-    if (!review.canReport && !review.reportedByMe) {
-      return null;
-    }
-
-    const isLoading = reportLoadingId === review._id;
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.reportReviewButton,
-          review.reportedByMe && styles.reportReviewButtonDisabled,
-          isLoading && styles.reportReviewButtonDisabled,
-        ]}
-        onPress={() => reportReview(review)}
-        disabled={review.reportedByMe || isLoading}
-        activeOpacity={0.8}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#D32F2F" />
-        ) : (
-          <Ionicons
-            name="flag-outline"
-            size={15}
-            color={review.reportedByMe ? 'gray' : '#D32F2F'}
-          />
-        )}
-
-        <Text
-          style={[
-            styles.reportReviewText,
-            review.reportedByMe && styles.reportReviewTextDisabled,
-          ]}
-        >
-          {review.reportedByMe ? 'Reported' : 'Report Review'}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
 
   if (loading) {
     return (
@@ -505,12 +261,6 @@ export default function BusinessDetailPage() {
                 <Text style={styles.reviewComment}>
                   {review.comment || 'No comment provided.'}
                 </Text>
-
-                {renderReviewImages(review)}
-
-                {renderReviewReactions(review)}
-
-                {renderReportButton(review)}
               </View>
             ))
           )}
@@ -692,84 +442,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  reviewImageRow: {
-    marginTop: 10,
-  },
-
-  reviewImage: {
-    width: 110,
-    height: 110,
-    borderRadius: 12,
-    marginRight: 10,
-    backgroundColor: '#eee',
-  },
-
-  reviewReactionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginTop: 12,
-  },
-
-  reviewReactionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-  },
-
-  reviewReactionButtonActive: {
-    backgroundColor: '#F9B208',
-    borderColor: '#F9B208',
-  },
-
-  reviewReactionButtonDisabled: {
-    opacity: 0.5,
-  },
-
-  reviewReactionText: {
-    color: '#222',
-    fontWeight: 'bold',
-  },
-
-  reviewReactionTextActive: {
-    color: '#fff',
-  },
-
-  reportReviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    marginTop: 10,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-    borderRadius: 16,
-    backgroundColor: '#FFECEC',
-    borderWidth: 1,
-    borderColor: '#FFD0D0',
-  },
-
-  reportReviewButtonDisabled: {
-    backgroundColor: '#eee',
-    borderColor: '#ddd',
-  },
-
-  reportReviewText: {
-    color: '#D32F2F',
-    fontWeight: 'bold',
-    fontSize: 13,
-  },
-
-  reportReviewTextDisabled: {
-    color: 'gray',
-  },
-
   emptyText: {
     color: 'gray',
     lineHeight: 20,
@@ -796,4 +468,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.2,
   },
-});
+});// // // 
