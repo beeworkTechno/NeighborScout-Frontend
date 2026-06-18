@@ -31,7 +31,6 @@ export default function Register() {
 
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
-  const [registeredSuccessfully, setRegisteredSuccessfully] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -97,7 +96,6 @@ export default function Register() {
 
     if (successMessage) {
       setSuccessMessage('');
-      setRegisteredSuccessfully(false);
     }
 
     if (errors[key] || errors.form) {
@@ -120,7 +118,6 @@ export default function Register() {
       setLoading(true);
       setErrors({});
       setSuccessMessage('');
-      setRegisteredSuccessfully(false);
 
       const cleanedForm = {
         ...form,
@@ -132,8 +129,7 @@ export default function Register() {
 
       await saveRole(cleanedForm.role || data.role || 'personal');
 
-      setSuccessMessage('Account created successfully. Click Enter to login.');
-      setRegisteredSuccessfully(true);
+      setSuccessMessage('Account created successfully. Redirecting to login...');
 
       setForm({
         name: '',
@@ -141,6 +137,10 @@ export default function Register() {
         password: '',
         role: 'personal',
       });
+
+      setTimeout(() => {
+        router.replace('/login');
+      }, 1000);
     } catch (err) {
       console.log('Register Error:', err?.response?.data || err);
 
@@ -166,7 +166,6 @@ export default function Register() {
       setGoogleLoading(true);
       setErrors({});
       setSuccessMessage('');
-      setRegisteredSuccessfully(false);
 
       const googleResult = await signInWithGoogle();
 
@@ -346,30 +345,20 @@ export default function Register() {
         <Text style={styles.errorText}>{errors.password}</Text>
       ) : null}
 
-      {!registeredSuccessfully ? (
-        <TouchableOpacity
-          style={[
-            styles.registerButton,
-            loading ? styles.disabledButton : null,
-          ]}
-          onPress={handleRegister}
-          disabled={loading || googleLoading}
-        >
-          {loading ? (
-            <ActivityIndicator color={colors.white} />
-          ) : (
-            <Text style={styles.buttonText}>Register</Text>
-          )}
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity
-          style={styles.enterLoginButton}
-          onPress={() => router.replace('/login')}
-          disabled={loading || googleLoading}
-        >
-          <Text style={styles.buttonText}>Enter to Login</Text>
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={[
+          styles.registerButton,
+          loading ? styles.disabledButton : null,
+        ]}
+        onPress={handleRegister}
+        disabled={loading || googleLoading}
+      >
+        {loading ? (
+          <ActivityIndicator color={colors.white} />
+        ) : (
+          <Text style={styles.buttonText}>Register</Text>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[
@@ -460,17 +449,11 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 4,
-  },
-
-  enterLoginButton: {
-    backgroundColor: colors.primary,
-    padding: 15,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 15,
   },
 
   googleButton: {
@@ -482,7 +465,10 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.12,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     elevation: 4,
   },
 
