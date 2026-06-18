@@ -32,6 +32,10 @@ import {
 import { getUserProfilePhotoUrl } from "../../utils/userPhoto";
 
 import { BUSINESS_CATEGORIES_WITH_ALL } from "../../src/constants/businessCategories";
+import { getCountriesAndCities } from "../../src/services/locationService";
+
+const ALL_COUNTRY = "All";
+const ALL_CITY = "All";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -49,6 +53,14 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showCategoryFilters, setShowCategoryFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
+
+  const [countryCityOptions, setCountryCityOptions] = useState([]);
+  const [countryCityLoading, setCountryCityLoading] = useState(false);
+  const [countryCityError, setCountryCityError] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(ALL_COUNTRY);
+  const [selectedCity, setSelectedCity] = useState(ALL_CITY);
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -77,6 +89,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadHomeData();
+    loadCountryCityOptions();
   }, []);
 
   const loadHomeData = async () => {
@@ -95,6 +108,22 @@ export default function HomeScreen() {
       await fetchBusinesses();
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCountryCityOptions = async () => {
+    try {
+      setCountryCityLoading(true);
+      setCountryCityError("");
+
+      const data = await getCountriesAndCities();
+      setCountryCityOptions(data || []);
+    } catch (error) {
+      console.log("Country City Load Error:", error);
+      setCountryCityError("Could not load country and city filters.");
+      setCountryCityOptions([]);
+    } finally {
+      setCountryCityLoading(false);
     }
   };
 
@@ -756,15 +785,96 @@ export default function HomeScreen() {
       .slice(0, 10);
   };
 
+  const normalizeText = (value) => {
+    return String(value || "")
+      .trim()
+      .toLowerCase();
+  };
+
+  const getCountryOptions = () => {
+    return [ALL_COUNTRY, ...countryCityOptions.map((item) => item.country)];
+  };
+
+  const getCityOptions = () => {
+    if (selectedCountry === ALL_COUNTRY) {
+      return [ALL_CITY];
+    }
+
+    const foundCountry = countryCityOptions.find(
+      (item) => item.country === selectedCountry
+    );
+
+    return [ALL_CITY, ...(foundCountry?.cities || [])];
+  };
+
+  const handleCountrySelect = (country) => {
+    setSelectedCountry(country);
+    setSelectedCity(ALL_CITY);
+    setShowCountryDropdown(false);
+    setShowCityDropdown(false);
+  };
+
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setShowCityDropdown(false);
+  };
+
+  const businessMatchesLocationValue = (business, value, fieldName) => {
+    if (!value || value === ALL_COUNTRY || value === ALL_CITY) {
+      return true;
+    }
+
+    const filterValue = normalizeText(value);
+    const directFieldValue = normalizeText(business[fieldName]);
+    const address = normalizeText(business.address);
+
+    return (
+      directFieldValue === filterValue ||
+      directFieldValue.includes(filterValue) ||
+      address.includes(filterValue)
+    );
+  };
+
+  const hasActiveFilters = () => {
+    return (
+      searchQuery.trim().length > 0 ||
+      selectedCategory !== "All" ||
+      selectedCountry !== ALL_COUNTRY ||
+      selectedCity !== ALL_CITY
+    );
+  };
+
+  const getActiveFilterText = () => {
+    const parts = [];
+
+    if (selectedCategory !== "All") {
+      parts.push(`Category: ${selectedCategory}`);
+    }
+
+    if (selectedCountry !== ALL_COUNTRY) {
+      parts.push(`Country: ${selectedCountry}`);
+    }
+
+    if (selectedCity !== ALL_CITY) {
+      parts.push(`City: ${selectedCity}`);
+    }
+
+    if (parts.length === 0 && searchQuery.trim()) {
+      return "Search filter active";
+    }
+
+    return parts.join(" • ");
+  };
+
   const getFilteredBusinesses = (list) => {
-    const query = searchQuery.trim().toLowerCase();
-    const categoryFilter = selectedCategory.trim().toLowerCase();
+    const query = normalizeText(searchQuery);
+    const categoryFilter = normalizeText(selectedCategory);
 
     return list.filter((business) => {
-      const name = business.name?.toLowerCase() || "";
-      const category = business.category?.toLowerCase() || "";
-      const address = business.address?.toLowerCase() || "";
-      const description = business.description?.toLowerCase() || "";
+      const name = normalizeText(business.name);
+      const category = normalizeText(business.category);
+      const address = normalizeText(business.address);
+      const description = normalizeText(business.description);
 
       const matchesSearch =
         !query ||
@@ -776,13 +886,30 @@ export default function HomeScreen() {
       const matchesCategory =
         selectedCategory === "All" || category.includes(categoryFilter);
 
-      return matchesSearch && matchesCategory;
+      const matchesCountry = businessMatchesLocationValue(
+        business,
+        selectedCountry,
+        "country"
+      );
+
+      const matchesCity = businessMatchesLocationValue(
+        business,
+        selectedCity,
+        "city"
+      );
+
+      return matchesSearch && matchesCategory && matchesCountry && matchesCity;
     });
   };
 
   const clearFilters = () => {
+    setSearchQuery("");
     setSelectedCategory("All");
+    setSelectedCountry(ALL_COUNTRY);
+    setSelectedCity(ALL_CITY);
     setShowCategoryFilters(false);
+    setShowCountryDropdown(false);
+    setShowCityDropdown(false);
   };
 
   const renderHeaderProfileButton = () => {
@@ -868,6 +995,139 @@ export default function HomeScreen() {
     </View>
   );
 
+  const renderDropdown = ({
+    label,
+    value,
+    options,
+    isOpen,
+    onToggle,
+    onSelect,
+    disabled = false,
+    disabledText = "Select country first",
+  }) => {
+    return (
+      <View style={styles.dropdownWrapper}>
+        <Text style={styles.dropdownLabel}>{label}</Text>
+
+        <TouchableOpacity
+          style={[
+            styles.dropdownButton,
+            disabled ? styles.dropdownButtonDisabled : null,
+          ]}
+          onPress={onToggle}
+          disabled={disabled}
+          activeOpacity={0.8}
+        >
+          <Text
+            style={[
+              styles.dropdownButtonText,
+              disabled ? styles.dropdownButtonTextDisabled : null,
+            ]}
+            numberOfLines={1}
+          >
+            {disabled ? disabledText : value}
+          </Text>
+
+          <Ionicons
+            name={isOpen ? "chevron-up-outline" : "chevron-down-outline"}
+            size={18}
+            color={disabled ? "#999" : "#222"}
+          />
+        </TouchableOpacity>
+
+        {isOpen && !disabled ? (
+          <View style={styles.dropdownList}>
+            <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
+              {options.map((option) => {
+                const isActive =
+                  option === selectedCountry || option === selectedCity;
+
+                return (
+                  <TouchableOpacity
+                    key={option}
+                    style={[
+                      styles.dropdownItem,
+                      isActive ? styles.dropdownItemActive : null,
+                    ]}
+                    onPress={() => onSelect(option)}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        isActive ? styles.dropdownItemTextActive : null,
+                      ]}
+                    >
+                      {option === ALL_COUNTRY
+                        ? "All Countries"
+                        : option === ALL_CITY
+                        ? "All Cities"
+                        : option}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
+
+  const renderLocationFilters = () => {
+    return (
+      <View style={styles.locationFilterBox}>
+        {countryCityLoading ? (
+          <View style={styles.locationStatusRow}>
+            <ActivityIndicator size="small" color="#F9B208" />
+            <Text style={styles.locationStatusText}>
+              Loading country and city filters...
+            </Text>
+          </View>
+        ) : null}
+
+        {countryCityError ? (
+          <Text style={styles.locationFilterError}>{countryCityError}</Text>
+        ) : null}
+
+        <View style={styles.locationFilterRow}>
+          {renderDropdown({
+            label: "Country",
+            value:
+              selectedCountry === ALL_COUNTRY
+                ? "All Countries"
+                : selectedCountry,
+            options: getCountryOptions(),
+            isOpen: showCountryDropdown,
+            onToggle: () => {
+              setShowCountryDropdown(!showCountryDropdown);
+              setShowCityDropdown(false);
+            },
+            onSelect: handleCountrySelect,
+            disabled: countryCityLoading,
+            disabledText: "Loading...",
+          })}
+
+          {renderDropdown({
+            label: "City",
+            value: selectedCity === ALL_CITY ? "All Cities" : selectedCity,
+            options: getCityOptions(),
+            isOpen: showCityDropdown,
+            onToggle: () => {
+              setShowCityDropdown(!showCityDropdown);
+              setShowCountryDropdown(false);
+            },
+            onSelect: handleCitySelect,
+            disabled: selectedCountry === ALL_COUNTRY || countryCityLoading,
+            disabledText:
+              selectedCountry === ALL_COUNTRY
+                ? "Select country first"
+                : "Loading...",
+          })}
+        </View>
+      </View>
+    );
+  };
+
   const renderSearchBar = (
     placeholder = "Search businesses by name, category, or address..."
   ) => (
@@ -900,7 +1160,10 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={[
             styles.filterIconButton,
-            showCategoryFilters || selectedCategory !== "All"
+            showCategoryFilters ||
+            selectedCategory !== "All" ||
+            selectedCountry !== ALL_COUNTRY ||
+            selectedCity !== ALL_CITY
               ? styles.filterIconButtonActive
               : null,
           ]}
@@ -911,7 +1174,10 @@ export default function HomeScreen() {
             name="options-outline"
             size={24}
             color={
-              showCategoryFilters || selectedCategory !== "All"
+              showCategoryFilters ||
+              selectedCategory !== "All" ||
+              selectedCountry !== ALL_COUNTRY ||
+              selectedCity !== ALL_CITY
                 ? "#fff"
                 : "#222"
             }
@@ -926,7 +1192,7 @@ export default function HomeScreen() {
           contentContainerStyle={styles.categoryFilterContainer}
         >
           {BUSINESS_CATEGORIES_WITH_ALL.map((category) => {
-            const categoryValue = category.id === 'all' ? 'All' : category.name;
+            const categoryValue = category.id === "all" ? "All" : category.name;
             const isActive = selectedCategory === categoryValue;
 
             return (
@@ -952,10 +1218,12 @@ export default function HomeScreen() {
         </ScrollView>
       )}
 
-      {selectedCategory !== "All" && (
+      {renderLocationFilters()}
+
+      {hasActiveFilters() && (
         <View style={styles.activeFilterRow}>
           <Text style={styles.activeFilterText}>
-            Filtering by: {selectedCategory}
+            {getActiveFilterText()}
           </Text>
 
           <TouchableOpacity onPress={clearFilters}>
@@ -1135,8 +1403,8 @@ export default function HomeScreen() {
   };
 
   const renderPersonalDashboard = () => {
-    const nearestBusinesses = getNearestBusinesses(businesses);
-    const filteredBusinesses = getFilteredBusinesses(nearestBusinesses);
+    const filteredBusinesses = getFilteredBusinesses(businesses);
+    const nearestBusinesses = getNearestBusinesses(filteredBusinesses);
 
     return (
       <ScrollView style={{ flex: 1 }} keyboardShouldPersistTaps="handled">
@@ -1175,15 +1443,15 @@ export default function HomeScreen() {
 
           {loading ? (
             <ActivityIndicator color="#F9B208" />
-          ) : filteredBusinesses.length === 0 ? (
+          ) : nearestBusinesses.length === 0 ? (
             <Text style={styles.emptyText}>
-              {searchQuery.trim() || selectedCategory !== "All"
+              {hasActiveFilters()
                 ? "No nearby businesses match your filters."
                 : "No nearby businesses found yet."}
             </Text>
           ) : (
             <FlatList
-              data={filteredBusinesses}
+              data={nearestBusinesses}
               keyExtractor={(item) => item._id}
               renderItem={({ item }) => renderBusinessCard(item)}
               scrollEnabled={false}
@@ -1722,6 +1990,111 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 
+  locationFilterBox: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+  },
+
+  locationFilterRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  locationStatusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 8,
+  },
+
+  locationStatusText: {
+    color: "#666",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  locationFilterError: {
+    color: "#D32F2F",
+    backgroundColor: "#FFECEC",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 8,
+    fontWeight: "600",
+  },
+
+  dropdownWrapper: {
+    flex: 1,
+  },
+
+  dropdownLabel: {
+    color: "#555",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 5,
+  },
+
+  dropdownButton: {
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  dropdownButtonDisabled: {
+    backgroundColor: "#eee",
+    borderColor: "#ddd",
+  },
+
+  dropdownButtonText: {
+    color: "#222",
+    fontWeight: "600",
+    flex: 1,
+    marginRight: 8,
+  },
+
+  dropdownButtonTextDisabled: {
+    color: "#999",
+  },
+
+  dropdownList: {
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+
+  dropdownScroll: {
+    maxHeight: 190,
+  },
+
+  dropdownItem: {
+    paddingVertical: 11,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f1f1",
+  },
+
+  dropdownItemActive: {
+    backgroundColor: "#FFF8E1",
+  },
+
+  dropdownItemText: {
+    color: "#222",
+    fontWeight: "500",
+  },
+
+  dropdownItemTextActive: {
+    color: "#F9B208",
+    fontWeight: "800",
+  },
+
   activeFilterRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1737,6 +2110,8 @@ const styles = StyleSheet.create({
   activeFilterText: {
     color: "#555",
     fontWeight: "600",
+    flex: 1,
+    marginRight: 10,
   },
 
   clearFilterText: {
