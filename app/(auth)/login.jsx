@@ -260,6 +260,7 @@ export default function LoginScreen() {
         returnKeyType="next"
         blurOnSubmit={false}
         onSubmitEditing={() => passwordInputRef.current?.focus()}
+        editable={!loading && !googleLoading}
       />
 
       {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
@@ -285,6 +286,7 @@ export default function LoginScreen() {
         secureTextEntry
         returnKeyType="done"
         onSubmitEditing={handleLogin}
+        editable={!loading && !googleLoading}
       />
 
       {errors.password ? (
@@ -315,7 +317,10 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push("/(auth)/register")}>
+      <TouchableOpacity
+        onPress={() => router.push("/register")}
+        disabled={loading || googleLoading}
+      >
         <Text style={styles.registerText}>
           Don't have an account? Register
         </Text>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   View,
   TextInput,
@@ -13,7 +13,7 @@ import { saveToken, saveRole } from '../../utils/tokenUtils';
 import axios from 'axios';
 
 import { registerUser } from '../../src/services/authService';
-import { useGoogleAuth } from '../../src/services/googleAuthService';
+import { signInWithGoogle } from '../../src/services/googleAuthService';
 import { API_URL } from '../../src/services/api';
 
 import { useRouter } from 'expo-router';
@@ -35,8 +35,6 @@ export default function Register() {
 
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const { response, promptAsync } = useGoogleAuth();
 
   const isValidEmail = (value) => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -112,6 +110,8 @@ export default function Register() {
   };
 
   const handleRegister = async () => {
+    if (loading || googleLoading) return;
+
     if (!validateRegister()) {
       return;
     }
@@ -159,63 +159,89 @@ export default function Register() {
     }
   };
 
-  useEffect(() => {
-    const handleGoogleRegister = async () => {
-      try {
-        if (response?.type === 'success') {
-          setGoogleLoading(true);
-          setErrors({});
-          setSuccessMessage('');
-          setRegisteredSuccessfully(false);
+  const handleGoogleRegister = async () => {
+    if (loading || googleLoading) return;
 
-          const { authentication } = response;
+    try {
+      setGoogleLoading(true);
+      setErrors({});
+      setSuccessMessage('');
+      setRegisteredSuccessfully(false);
 
-          if (!authentication?.idToken) {
-            Alert.alert(
-              'Google Signup Error',
-              'No Google ID token received'
-            );
-            return;
-          }
+      const googleResult = await signInWithGoogle();
 
-          const res = await axios.post(`${API_URL}/auth/google`, {
-            token: authentication.idToken,
-          });
+      console.log('Google register final result:', googleResult);
 
-          if (!res.data.token) {
-            Alert.alert('Google Signup Error', 'No token received from server.');
-            return;
-          }
+      if (googleResult.type !== 'success') {
+        setErrors({
+          form: 'Google signup was cancelled or dismissed.',
+        });
+        return;
+      }
 
-          await saveToken(res.data.token);
-          await saveRole(res.data.role || res.data.user?.role || 'personal');
+      const accessToken = googleResult.accessToken;
+      const idToken = googleResult.idToken;
 
-          setSuccessMessage('Google authentication successful. Entering home page...');
+      console.log('Google register access token exists:', Boolean(accessToken));
+      console.log('Google register id token exists:', Boolean(idToken));
 
-          setTimeout(() => {
-            router.replace('/(tabs)/home');
-          }, 1000);
-        }
-      } catch (error) {
-        console.log('Google Register Error:', error?.response?.data || error);
-
-        const message = getErrorMessage(
-          error,
-          'Google signup failed. Please try again.'
-        );
+      if (!accessToken && !idToken) {
+        const message = 'Google token missing. Please try again.';
 
         setErrors({
           form: message,
         });
 
         Alert.alert('Google Signup Error', message);
-      } finally {
-        setGoogleLoading(false);
+        return;
       }
-    };
 
-    handleGoogleRegister();
-  }, [response]);
+      const res = await axios.post(`${API_URL}/auth/google`, {
+        accessToken,
+        idToken,
+        token: idToken,
+      });
+
+      console.log('Backend Google register response:', res.data);
+
+      if (!res.data.token) {
+        const message = 'No token received from server.';
+
+        setErrors({
+          form: message,
+        });
+
+        Alert.alert('Google Signup Error', message);
+        return;
+      }
+
+      await saveToken(res.data.token);
+
+      const role = res.data.role || res.data.user?.role || 'personal';
+      await saveRole(role);
+
+      setSuccessMessage('Google signup successful. Entering home page...');
+
+      setTimeout(() => {
+        router.replace('/(tabs)/home');
+      }, 1000);
+    } catch (error) {
+      console.log('Google Register Error:', error?.response?.data || error);
+
+      const message = getErrorMessage(
+        error,
+        'Google signup failed. Please try again.'
+      );
+
+      setErrors({
+        form: message,
+      });
+
+      Alert.alert('Google Signup Error', message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -295,6 +321,7 @@ export default function Register() {
         ]}
         autoCapitalize="none"
         keyboardType="email-address"
+        autoCorrect={false}
         onChangeText={(text) => handleChange('email', text)}
         editable={!loading && !googleLoading}
       />
@@ -337,7 +364,8 @@ export default function Register() {
       ) : (
         <TouchableOpacity
           style={styles.enterLoginButton}
-          onPress={() => router.replace('/(auth)/login')}
+          onPress={() => router.replace('/login')}
+          disabled={loading || googleLoading}
         >
           <Text style={styles.buttonText}>Enter to Login</Text>
         </TouchableOpacity>
@@ -348,7 +376,7 @@ export default function Register() {
           styles.googleButton,
           googleLoading ? styles.disabledButton : null,
         ]}
-        onPress={() => promptAsync()}
+        onPress={handleGoogleRegister}
         disabled={googleLoading || loading}
       >
         {googleLoading ? (
@@ -360,7 +388,7 @@ export default function Register() {
 
       <Text
         style={styles.link}
-        onPress={() => router.push('/(auth)/login')}
+        onPress={() => router.push('/login')}
       >
         Already have an account? Login
       </Text>
