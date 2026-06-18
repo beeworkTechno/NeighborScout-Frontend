@@ -61,6 +61,8 @@ export default function HomeScreen() {
   const [selectedCity, setSelectedCity] = useState(ALL_CITY);
   const [showCountryDropdown, setShowCountryDropdown] = useState(false);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [countryDropdownSearch, setCountryDropdownSearch] = useState("");
+  const [cityDropdownSearch, setCityDropdownSearch] = useState("");
 
   const [userLocation, setUserLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
@@ -810,12 +812,15 @@ export default function HomeScreen() {
   const handleCountrySelect = (country) => {
     setSelectedCountry(country);
     setSelectedCity(ALL_CITY);
+    setCountryDropdownSearch("");
+    setCityDropdownSearch("");
     setShowCountryDropdown(false);
     setShowCityDropdown(false);
   };
 
   const handleCitySelect = (city) => {
     setSelectedCity(city);
+    setCityDropdownSearch("");
     setShowCityDropdown(false);
   };
 
@@ -907,6 +912,8 @@ export default function HomeScreen() {
     setSelectedCategory("All");
     setSelectedCountry(ALL_COUNTRY);
     setSelectedCity(ALL_CITY);
+    setCountryDropdownSearch("");
+    setCityDropdownSearch("");
     setShowCategoryFilters(false);
     setShowCountryDropdown(false);
     setShowCityDropdown(false);
@@ -1004,7 +1011,23 @@ export default function HomeScreen() {
     onSelect,
     disabled = false,
     disabledText = "Select country first",
+    searchValue,
+    onSearchChange,
+    searchPlaceholder = "Type to search...",
   }) => {
+    const filteredOptions = options.filter((option) => {
+      const optionText =
+        option === ALL_COUNTRY
+          ? "All Countries"
+          : option === ALL_CITY
+          ? "All Cities"
+          : option;
+
+      return optionText
+        .toLowerCase()
+        .includes(searchValue.trim().toLowerCase());
+    });
+
     return (
       <View style={styles.dropdownWrapper}>
         <Text style={styles.dropdownLabel}>{label}</Text>
@@ -1037,35 +1060,63 @@ export default function HomeScreen() {
 
         {isOpen && !disabled ? (
           <View style={styles.dropdownList}>
-            <ScrollView nestedScrollEnabled style={styles.dropdownScroll}>
-              {options.map((option) => {
-                const isActive =
-                  option === selectedCountry || option === selectedCity;
+            <View style={styles.dropdownSearchBox}>
+              <Ionicons name="search-outline" size={16} color="#999" />
 
-                return (
-                  <TouchableOpacity
-                    key={option}
-                    style={[
-                      styles.dropdownItem,
-                      isActive ? styles.dropdownItemActive : null,
-                    ]}
-                    onPress={() => onSelect(option)}
-                  >
-                    <Text
+              <TextInput
+                style={styles.dropdownSearchInput}
+                placeholder={searchPlaceholder}
+                placeholderTextColor="#999"
+                value={searchValue}
+                onChangeText={onSearchChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+
+              {searchValue.length > 0 ? (
+                <TouchableOpacity onPress={() => onSearchChange("")}>
+                  <Ionicons name="close-circle" size={18} color="#999" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            <ScrollView
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              style={styles.dropdownScroll}
+            >
+              {filteredOptions.length === 0 ? (
+                <Text style={styles.dropdownEmptyText}>No results found.</Text>
+              ) : (
+                filteredOptions.map((option) => {
+                  const isActive =
+                    option === selectedCountry || option === selectedCity;
+
+                  return (
+                    <TouchableOpacity
+                      key={option}
                       style={[
-                        styles.dropdownItemText,
-                        isActive ? styles.dropdownItemTextActive : null,
+                        styles.dropdownItem,
+                        isActive ? styles.dropdownItemActive : null,
                       ]}
+                      onPress={() => onSelect(option)}
                     >
-                      {option === ALL_COUNTRY
-                        ? "All Countries"
-                        : option === ALL_CITY
-                        ? "All Cities"
-                        : option}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          isActive ? styles.dropdownItemTextActive : null,
+                        ]}
+                      >
+                        {option === ALL_COUNTRY
+                          ? "All Countries"
+                          : option === ALL_CITY
+                          ? "All Cities"
+                          : option}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         ) : null}
@@ -1101,10 +1152,14 @@ export default function HomeScreen() {
             onToggle: () => {
               setShowCountryDropdown(!showCountryDropdown);
               setShowCityDropdown(false);
+              setCityDropdownSearch("");
             },
             onSelect: handleCountrySelect,
             disabled: countryCityLoading,
             disabledText: "Loading...",
+            searchValue: countryDropdownSearch,
+            onSearchChange: setCountryDropdownSearch,
+            searchPlaceholder: "Search country...",
           })}
 
           {renderDropdown({
@@ -1115,6 +1170,7 @@ export default function HomeScreen() {
             onToggle: () => {
               setShowCityDropdown(!showCityDropdown);
               setShowCountryDropdown(false);
+              setCountryDropdownSearch("");
             },
             onSelect: handleCitySelect,
             disabled: selectedCountry === ALL_COUNTRY || countryCityLoading,
@@ -1122,6 +1178,9 @@ export default function HomeScreen() {
               selectedCountry === ALL_COUNTRY
                 ? "Select country first"
                 : "Loading...",
+            searchValue: cityDropdownSearch,
+            onSearchChange: setCityDropdownSearch,
+            searchPlaceholder: "Search city...",
           })}
         </View>
       </View>
@@ -1222,9 +1281,7 @@ export default function HomeScreen() {
 
       {hasActiveFilters() && (
         <View style={styles.activeFilterRow}>
-          <Text style={styles.activeFilterText}>
-            {getActiveFilterText()}
-          </Text>
+          <Text style={styles.activeFilterText}>{getActiveFilterText()}</Text>
 
           <TouchableOpacity onPress={clearFilters}>
             <Text style={styles.clearFilterText}>Clear</Text>
@@ -2070,6 +2127,24 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
+  dropdownSearchBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#eee",
+    backgroundColor: "#fff",
+  },
+
+  dropdownSearchInput: {
+    flex: 1,
+    color: "#222",
+    fontSize: 14,
+    outlineStyle: "none",
+  },
+
   dropdownScroll: {
     maxHeight: 190,
   },
@@ -2093,6 +2168,12 @@ const styles = StyleSheet.create({
   dropdownItemTextActive: {
     color: "#F9B208",
     fontWeight: "800",
+  },
+
+  dropdownEmptyText: {
+    color: "gray",
+    padding: 12,
+    textAlign: "center",
   },
 
   activeFilterRow: {
