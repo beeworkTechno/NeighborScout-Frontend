@@ -162,6 +162,14 @@ export default function Register() {
   const handleGoogleRegister = async () => {
     if (loading || googleLoading) return;
 
+    if (form.role !== 'personal') {
+      Alert.alert(
+        'Google Signup Not Available',
+        'Google signup is only available for personal users.'
+      );
+      return;
+    }
+
     try {
       setGoogleLoading(true);
       setErrors({});
@@ -199,6 +207,7 @@ export default function Register() {
         accessToken,
         idToken,
         token: idToken,
+        role: 'personal',
       });
 
       console.log('Backend Google register response:', res.data);
@@ -360,20 +369,22 @@ export default function Register() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.googleButton,
-          googleLoading ? styles.disabledButton : null,
-        ]}
-        onPress={handleGoogleRegister}
-        disabled={googleLoading || loading}
-      >
-        {googleLoading ? (
-          <ActivityIndicator color={colors.white} />
-        ) : (
-          <Text style={styles.buttonText}>Continue with Google</Text>
-        )}
-      </TouchableOpacity>
+      {form.role === 'personal' ? (
+        <TouchableOpacity
+          style={[
+            styles.googleButton,
+            googleLoading ? styles.disabledButton : null,
+          ]}
+          onPress={handleGoogleRegister}
+          disabled={googleLoading || loading}
+        >
+          {googleLoading ? (
+            <ActivityIndicator color={colors.white} />
+          ) : (
+            <Text style={styles.buttonText}>Continue with Google</Text>
+          )}
+        </TouchableOpacity>
+      ) : null}
 
       <Text
         style={styles.link}
