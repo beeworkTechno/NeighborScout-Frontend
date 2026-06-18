@@ -116,6 +116,8 @@ export default function BusinessMap({
   selectedBusinessFromList,
   searchText = "",
   selectedCategory = "All",
+  onReviewBusiness,
+  isBusinessUser = false,
 }) {
   const router = useRouter();
   const iframeRef = useRef(null);
@@ -199,6 +201,17 @@ export default function BusinessMap({
 
   const openBusinessPage = (business) => {
     if (!business?._id) return;
+
+    router.push(`/business/${business._id}`);
+  };
+
+  const handleReviewBusiness = (business) => {
+    if (!business?._id) return;
+
+    if (onReviewBusiness) {
+      onReviewBusiness(business);
+      return;
+    }
 
     router.push(`/business/${business._id}`);
   };
@@ -636,15 +649,11 @@ export default function BusinessMap({
       />
 
       {selectedBusiness && (
-        <TouchableOpacity
-          style={styles.businessCard}
-          activeOpacity={0.9}
-          onPress={() => openBusinessPage(selectedBusiness)}
-        >
+        <View style={styles.businessCard}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={(event) => {
-              event.stopPropagation();
+              event.stopPropagation?.();
               setSelectedBusiness(null);
             }}
           >
@@ -675,12 +684,30 @@ export default function BusinessMap({
             Reviews: {selectedBusiness.reviewCount || 0}
           </Text>
 
-          <View style={styles.openPageHint}>
-            <Text style={styles.openPageHintText}>
-              Tap card to open business page
-            </Text>
+          <View style={styles.mapCardButtonRow}>
+            <TouchableOpacity
+              style={styles.mapCardButton}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                openBusinessPage(selectedBusiness);
+              }}
+            >
+              <Text style={styles.mapCardButtonText}>Open Page</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.reviewMapButton}
+              onPress={(event) => {
+                event.stopPropagation?.();
+                handleReviewBusiness(selectedBusiness);
+              }}
+            >
+              <Text style={styles.reviewMapButtonText}>
+                {isBusinessUser ? "View Reviews" : "Review / Rate"}
+              </Text>
+            </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -716,7 +743,6 @@ const styles = StyleSheet.create({
     padding: 16,
     elevation: 5,
     boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
-    cursor: "pointer",
   },
 
   closeButton: {
@@ -757,16 +783,38 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  openPageHint: {
+  mapCardButtonRow: {
+    flexDirection: "row",
+    gap: 10,
     marginTop: 12,
+  },
+
+  mapCardButton: {
+    flex: 1,
     backgroundColor: colors.primaryDark || "#222",
     paddingVertical: 12,
-    borderRadius: 18,
+    borderRadius: 16,
     alignItems: "center",
     boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
   },
 
-  openPageHintText: {
+  mapCardButtonText: {
+    color: colors.white || "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+    letterSpacing: 0.2,
+  },
+
+  reviewMapButton: {
+    flex: 1,
+    backgroundColor: colors.primary || "#F9B208",
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: "center",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+  },
+
+  reviewMapButtonText: {
     color: colors.white || "#fff",
     fontWeight: "700",
     fontSize: 13,

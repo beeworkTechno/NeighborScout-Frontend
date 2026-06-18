@@ -1903,7 +1903,11 @@ export default function HomeScreen() {
       </View>
 
       {activeTab === "map" ? (
-        <BusinessMap selectedBusinessFromList={mapSelectedBusiness} />
+        <BusinessMap
+          selectedBusinessFromList={mapSelectedBusiness}
+          onReviewBusiness={openReviewModal}
+          isBusinessUser={isBusinessUser}
+        />
       ) : (
         renderDashboard()
       )}
